@@ -23,66 +23,66 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework.exceptions import AuthenticationFailed
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-
+from rest_framework.permissions import IsAuthenticated
 
 
 logger = logging.getLogger(__name__)
 
 
-# class UserSignup(APIView):
-#     """
-#     API endpoint for user signup.
-#     """
-#     def post(self, request):
-#         try:
-#             data = request.data
-#             serializer = UserSerializer(data=data)
-#             serializer.is_valid(raise_exception=True)
+class UserSignup(APIView):
+    """
+    API endpoint for user signup.
+    """
+    def post(self, request):
+        try:
+            data = request.data
+            serializer = UserSerializer(data=data)
+            serializer.is_valid(raise_exception=True)
 
-#             if User.objects.filter(username=data['username']).exists():
-#                 return Response({'message': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(username=data['username']).exists():
+                return Response({'message': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 
-#             if User.objects.filter(email=data['email']).exists():
-#                 return Response({'message': 'Email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(email=data['email']).exists():
+                return Response({'message': 'Email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 
-#             user = serializer.save()
+            user = serializer.save()
 
-#             response_data = {
-#                 'message': 'User registered successfully',
-#                 'user': serializer.data
-#             }
+            response_data = {
+                'message': 'User registered successfully',
+                'user': serializer.data
+            }
 
-#             return Response(response_data, status=status.HTTP_201_CREATED)
+            return Response(response_data, status=status.HTTP_201_CREATED)
 
-#         except ValidationError as e:
-#             return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-#         except Exception as e:
-#             print(e)
-#             return Response({'message': 'Unable to register user.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except ValidationError as e:
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(e)
+            return Response({'message': 'Unable to register user.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-# class GetUserAPIView(APIView):
-#     authentication_classes = []  # Allow unauthenticated access
-#     permission_classes = []
-#     def post(self, request):
-#         username = request.data.get('username', '')
-#         password = request.data.get('password', '')
 
-#         try:
-#             user = User.objects.get(username=username)
-#         except User.DoesNotExist:
-#             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+class GetUserAPIView(APIView):
+    authentication_classes = []  # Allow unauthenticated access
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        username = request.data.get('username', '')
+        password = request.data.get('password', '')
 
-#         if check_password(password, user.password):
-#             serializer = UserSerializer(user)  
-#             return Response({'user': serializer.data}, status=status.HTTP_200_OK)
-#         else:
-#             return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if check_password(password, user.password):
+            serializer = UserSerializer(user)  
+            return Response({'user': serializer.data}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
         
 class UserSignInAPIView(APIView):
     def post(self, request):
         username = request.data.get('username', '')
         password = request.data.get('password', '')
-        
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
@@ -125,7 +125,6 @@ class AdventurePlaceListAPIView(generics.ListAPIView):
             {"name": "Shimla", "activities": "Sightseeing, Shopping, Ice Skating", "images": "shimla_image.jpg"},
             {"name": "Bike Trip to Leh", "activities": "Biking, Pangong Lake Visit, Nubra Valley", "images": "leh_image.jpg"},
         ]
-
         serializer = self.get_serializer(adventure_places, many=True)
         return self.get_paginated_response(serializer.data)
     
@@ -156,8 +155,8 @@ class AdventurePlaceDetailAPIView(generics.RetrieveAPIView):
             "Rishikesh": "Discover the spiritual charm of Rishikesh while enjoying exciting activities. Raft down the Ganges, "
                          "practice yoga by the riverside, and experience the serene beauty of this holy city.",
 
-            "Manali": "Manali offers a perfect blend of adventure and tranquility. Enjoy skiing on the snowy slopes, "
-                      "experience the thrill of paragliding, and hike in the picturesque landscapes.",
+            "Manali": "Manali offers a perfect blend of adventure and tranquility. Enjoy skiing on the snowy slopes",
+                      
 
             "Auli": "Auli, known for its pristine beauty, is a paradise for ski enthusiasts. Glide through snow-covered slopes, "
                     "take a cable car ride for breathtaking views, and trek amidst the Garhwal Himalayas.",
