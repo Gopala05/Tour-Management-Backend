@@ -114,6 +114,7 @@ REST_FRAMEWORK = {
 }
 
 ROOT_URLCONF = 'DbApplication.urls'
+# AUTH_USER_MODEL = 'DbApplication.User'
 
 TEMPLATES = [
     {

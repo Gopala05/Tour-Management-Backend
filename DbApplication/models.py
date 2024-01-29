@@ -43,9 +43,9 @@ class Destination(models.Model):
 
 class Itinerary(models.Model):
     itinerary_id = models.AutoField(primary_key=True)
-    destination_id = models.ForeignKey('Destination', on_delete=models.CASCADE)
-    travel_id = models.ForeignKey('Travel', on_delete=models.CASCADE)
-    user_id = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    destination_id = models.ForeignKey(Destination, on_delete=models.CASCADE)
+    travel_id = models.ForeignKey(Travel, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
     end_date = models.DateField()
     start_date = models.DateField()
     title = models.CharField(max_length=255)
@@ -55,9 +55,9 @@ class Itinerary(models.Model):
 
 class Activity(models.Model):
     activity_id = models.AutoField(primary_key=True)
-    destination_id = models.ForeignKey('Destination', on_delete=models.CASCADE)
-    itinerary_id = models.ForeignKey('Itinerary', on_delete=models.CASCADE)
-    user_id = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    destination_id = models.ForeignKey(Destination, on_delete=models.CASCADE)
+    itinerary_id = models.ForeignKey(Itinerary, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
     activity_type = models.CharField(max_length=255)
     description = models.TextField()
     date = models.DateField()
