@@ -22,11 +22,11 @@ class User(models.Model):
 
 class Travel(models.Model):
     travel_id = models.AutoField(primary_key=True)
-    destination_id = models.ForeignKey('Destination', on_delete=models.CASCADE)
     amenities = models.CharField(max_length=45, blank=True, null=True)
     location = models.CharField(max_length=45)
     name = models.CharField(max_length=45)
     price_per_night = models.IntegerField()
+    destination_id = models.ForeignKey('Destination', on_delete=models.CASCADE)
 
     class Meta:
         db_table = 'Travel'
@@ -43,43 +43,47 @@ class Destination(models.Model):
 
 class Itinerary(models.Model):
     itinerary_id = models.AutoField(primary_key=True)
-    destination_id = models.ForeignKey(Destination, on_delete=models.CASCADE)
-    travel_id = models.ForeignKey(Travel, on_delete=models.CASCADE)
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
     end_date = models.DateField()
     start_date = models.DateField()
     title = models.CharField(max_length=255)
+    destination_id = models.ForeignKey(Destination, on_delete=models.CASCADE)
+    travel_id = models.ForeignKey(Travel, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
 
     class Meta:
         db_table = 'Itineraries'
 
 class Activity(models.Model):
     activity_id = models.AutoField(primary_key=True)
-    destination_id = models.ForeignKey(Destination, on_delete=models.CASCADE)
-    itinerary_id = models.ForeignKey(Itinerary, on_delete=models.CASCADE)
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
     activity_type = models.CharField(max_length=255)
     description = models.TextField()
     date = models.DateField()
+    destination_id = models.ForeignKey(Destination, on_delete=models.CASCADE)
+    itinerary_id = models.ForeignKey(Itinerary, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
 
     class Meta:
         db_table = 'Activities'
 
-class AdventurePlace(models.Model):
+class AdventurePlaceList(models.Model):
+    id=models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
     activities = models.TextField()
     images = models.ImageField(upload_to='adventure_places/', null=True, blank=True)
+    # description = models.TextField()
 
-    def __str__(self):
-        return self.name
+    class Meta:
+        db_table = 'AdventurePlaces'
 
 class CustomerDetail(models.Model):
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
     mobile_number = models.CharField(max_length=15)
     email = models.EmailField()
 
-    def __str__(self):
-        return self.name
+    class Meta:
+        db_table = 'Customer Detail'
+
 
 class AdventurePackage(models.Model):
     adventure_id = models.AutoField(primary_key=True)
@@ -87,8 +91,8 @@ class AdventurePackage(models.Model):
     activities = models.TextField()
     images = models.ImageField(upload_to='adventure_package_images/')
 
-    def __str__(self):
-        return self.name
+    class Meta:
+        db_table = 'AdventurePackage'
 
 class BookingDetail(models.Model):
     booking_id = models.AutoField(primary_key=True)

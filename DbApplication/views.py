@@ -11,12 +11,12 @@ from rest_framework.serializers import ValidationError
 from django.contrib.auth.hashers import check_password
 import random
 import logging
-from .models import AdventurePlace, CustomerDetail, AdventurePackage, BookingDetail,User
+from .models import AdventurePlaceList, CustomerDetail, AdventurePackage, BookingDetail,User
 from .serializers import (
-    UserSerializer,UserSignInSerializer, AdventurePlaceSerializer,
+    UserSerializer,UserSignInSerializer,
     AdventurePlaceDetailSerializer, CustomerDetailSerializer,
-    AdventurePackageSerializer, BookingDetailSerializer,
-    FeedbackSerializer
+    BookingDetailSerializer,
+    FeedbackSerializer,AdventurePackageSerializer
 )
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -103,117 +103,42 @@ class UserSignInAPIView(APIView):
             return Response({'user': user_data}, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
-
-class AdventurePlaceListAPIView(generics.ListAPIView):
-    queryset = AdventurePlace.objects.all()
-    serializer_class = AdventurePlaceSerializer
-    def get(self, request, *args, **kwargs):
-        # Customize the list of adventure places with details of activities
-        adventure_places = [
-            {"name": "Ladakh", "activities": "Trekking, Biking, River Rafting", "images": "ladakh_image.jpg"},
-            {"name": "Rishikesh", "activities": "Rafting, Yoga, Camping", "images": "rishikesh_image.jpg"},
-            {"name": "Manali", "activities": "Skiing, Paragliding, Hiking", "images": "manali_image.jpg"},
-            {"name": "Auli", "activities": "Skiing, Cable Car Ride, Trekking", "images": "auli_image.jpg"},
-            {"name": "Gulmarg", "activities": "Skiing, Gondola Ride, Golf", "images": "gulmarg_image.jpg"},
-            {"name": "Goa", "activities": "Beach Activities, Water Sports, Nightlife", "images": "goa_image.jpg"},
-            {"name": "Andaman", "activities": "Scuba Diving, Snorkeling, Island Hopping", "images": "andaman_image.jpg"},
-            {"name": "Caving in Meghalaya", "activities": "Caving, Adventure Exploration", "images": "meghalaya_image.jpg"},
-            {"name": "Spiti", "activities": "Trekking, Monastery Visits, Camping", "images": "spiti_image.jpg"},
-            {"name": "Dandeli", "activities": "River Rafting, Jungle Safari, Bird Watching", "images": "dandeli_image.jpg"},
-            {"name": "Hot Air Ballooning in Jaipur", "activities": "Hot Air Ballooning, City Tour", "images": "jaipur_image.jpg"},
-            {"name": "Paragliding in Bir", "activities": "Paragliding, Camping, Tibetan Colony Visit", "images": "bir_image.jpg"},
-            {"name": "Shimla", "activities": "Sightseeing, Shopping, Ice Skating", "images": "shimla_image.jpg"},
-            {"name": "Bike Trip to Leh", "activities": "Biking, Pangong Lake Visit, Nubra Valley", "images": "leh_image.jpg"},
-        ]
-        serializer = self.get_serializer(adventure_places, many=True)
-        return self.get_paginated_response(serializer.data)
     
-class AdventurePlaceDetailAPIView(generics.RetrieveAPIView):
-    queryset = AdventurePlace.objects.all()
+    
+class AdventurePlaceListAPIView(generics.ListAPIView):
+    queryset = AdventurePlaceList.objects.all()
     serializer_class = AdventurePlaceDetailSerializer
-    lookup_field = 'id'  # Assuming 'id' is the parameter to identify the adventure place
 
     def get(self, request, *args, **kwargs):
         try:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance)
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
 
-            # Customize the response with additional details
-            response_data = serializer.data
-            response_data['description'] = self.get_activity_description(instance.name)
-            
-            return Response(response_data)
+            return Response(serializer.data)
         except Exception as e:
-            return Response({'message': 'Unable to retrieve adventure place details.'}, status=500)
-
-    def get_activity_description(self, place_name):
-        # You can customize the activity descriptions based on the adventure place
-        descriptions = {
-            "Ladakh": "Embark on a thrilling adventure in the majestic landscapes of Ladakh. Explore high mountain passes, "
-                      "experience the culture of local monasteries, and indulge in heart-pounding biking and river rafting.",
-
-            "Rishikesh": "Discover the spiritual charm of Rishikesh while enjoying exciting activities. Raft down the Ganges, "
-                         "practice yoga by the riverside, and experience the serene beauty of this holy city.",
-
-            "Manali": "Manali offers a perfect blend of adventure and tranquility. Enjoy skiing on the snowy slopes",
-                      
-
-            "Auli": "Auli, known for its pristine beauty, is a paradise for ski enthusiasts. Glide through snow-covered slopes, "
-                    "take a cable car ride for breathtaking views, and trek amidst the Garhwal Himalayas.",
-
-            "Gulmarg":"Gulmarg's snow-covered slopes provide an ideal playground for snowboarding enthusiasts."
-                      "Experience the thrill of carving through powdery snow against the stunning backdrop of the Pir Panjal range.",
-
-            "Goa": "Dive into the vibrant underwater world of Goa with a scuba diving exploration."
-                   "Discover coral reefs, colorful marine life, and ancient shipwrecks."
-                   " Goa offers an unforgettable experience for diving enthusiasts.",
-
-            "Andaman":"Explore the crystal-clear waters of the Andaman Islands through a captivating snorkeling adventure."
-                      " Witness the diverse marine life, vibrant coral gardens, and pristine beaches",
-
-            "Caving in Meghalaya":"Embark on an underground expedition through the caves of Meghalaya."
-                                  " Discover hidden chambers, unique rock formations, and the fascinating subterranean world beneath the lush landscapes.",
-
-            "Spiti":"Challenge yourself with a high-altitude trek in the captivating landscapes of Spiti."
-                    "Trek through barren terrains, ancient monasteries, and lofty mountain passes.",
-
-            "Dandeli ":"Experience the thrill of river rafting combined with a wildlife safari in Dandeli."
-                        "Navigate through river rapids and explore the rich biodiversity of the Western Ghats.",
-
-            "Hot Air Ballooning in Jaipur":"Soar high above the Pink City with a hot air ballooning adventure in Jaipur."
-                                           "Marvel at the architectural wonders below and enjoy a bird's-eye view of the vibrant city.",
-
-            "Paragliding in Bir":"Take to the skies with a paragliding adventure in Bir Billing, often referred to as the 'Paragliding Capital of India.' "
-                                 "Soar over lush landscapes and experience the thrill of free-flying.",
-
-            "Shimla":"Explore the picturesque surroundings of Shimla with a nature biking expedition."
-                     "Ride through forested trails, apple orchards, and charming villages.",
-
-            "Bike Trip to Leh":"Embark on a legendary bike trip to Leh, traversing high mountain passes and winding roads."
-                               " Witness the stark beauty of Ladakh and the cultural richness of the region." 
-            # Add descriptions for other places
-        }
-
-        return descriptions.get(place_name, "Detailed description not available.")
+            return Response({'message': 'Unable to retrieve adventure place details.', 'error': str(e)}, status=500)
     
 
+class AdventurePackageDetailView(APIView):
+    def get(self, request, adventure_id, format=None):
+        try:
+            adventure_package = AdventurePackage.objects.get(adventure_id=adventure_id)
+            serializer = AdventurePackageSerializer(adventure_package)
+            return Response(serializer.data)
+        except AdventurePackage.DoesNotExist:
+            return Response({'message': 'Adventure Package not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'message': 'Unable to retrieve adventure package details.', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class CustomerDetailCreateAPIView(generics.CreateAPIView):
-    queryset = CustomerDetail.objects.all()
-    serializer_class = CustomerDetailSerializer
+class CustomerDetailAPIView(APIView):
+    def post(self, request, format=None):
+        serializer = CustomerDetailSerializer(data=request.data)
 
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-class AdventurePackageDetailAPIView(generics.RetrieveAPIView):
-    queryset = AdventurePackage.objects.all()
-    serializer_class = AdventurePackageSerializer
-    lookup_field = 'id'  # Assuming 'id' is the parameter to identify the adventure package
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
-    
 
 
 class BookingDetailCreateAPIView(generics.CreateAPIView):
