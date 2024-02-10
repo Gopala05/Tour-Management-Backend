@@ -102,7 +102,27 @@ class BookingDetail(models.Model):
     address_proof = models.FileField(upload_to='booking_address_proofs/', null=True, blank=True)
     dates = models.DateField()
     package_details = models.TextField()
-    payment_method = models.CharField(max_length=50)
+
+    class Meta:
+        db_table = 'BookingDetail'
+
+class UserFeedback(models.Model):
+    RATING_CHOICES = [
+        (1, '1 - Poor'),
+        (2, '2 - Below Average'),
+        (3, '3 - Average'),
+        (4, '4 - Good'),
+        (5, '5 - Excellent'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    feedback_text = models.TextField()
+    rating = models.IntegerField(choices=RATING_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        db_table = 'User Feedback'
 
     def __str__(self):
-        return f"{self.name}'s Booking"
+        return f'{self.user.username} - {self.created_at}'

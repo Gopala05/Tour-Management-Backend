@@ -5,18 +5,18 @@ from django.contrib.auth.models import User
 from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly
 from rest_framework.permissions import AllowAny
 from rest_framework.serializers import ValidationError
 from django.contrib.auth.hashers import check_password
 import random
 import logging
-from .models import AdventurePlaceList, CustomerDetail, AdventurePackage, BookingDetail,User
+from .models import AdventurePlaceList, CustomerDetail, AdventurePackage, BookingDetail,User,UserFeedback
 from .serializers import (
     UserSerializer,UserSignInSerializer,
     AdventurePlaceDetailSerializer, CustomerDetailSerializer,
     BookingDetailSerializer,
-    FeedbackSerializer,AdventurePackageSerializer
+    UserFeedbackSerializer,AdventurePackageSerializer
 )
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -158,20 +158,19 @@ class BookingDetailCreateAPIView(generics.CreateAPIView):
         email = EmailMessage(subject, message, from_email, to_email)
         email.send()
 
-
-
-class FeedbackCreateAPIView(generics.CreateAPIView):
-    serializer_class = FeedbackSerializer
-
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        response = super().create(request, *args, **kwargs)
+        return response
 
-        feedback = serializer.validated_data['feedback']
-        # Process the feedback as needed (e.g., store in a database)
 
-        response_data = {'message': 'Feedback received successfully', 'feedback': feedback}
-        return Response(response_data)
+
+class UserFeedbackCreateAPIView(generics.CreateAPIView):
+    queryset = UserFeedback.objects.all()
+    serializer_class = UserFeedbackSerializer
+    permission_classes = [IsAuthenticated,IsAuthenticatedOrReadOnly]
+
+    def post(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 

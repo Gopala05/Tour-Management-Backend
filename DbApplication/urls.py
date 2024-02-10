@@ -4,8 +4,8 @@ from DbApplication import views
 from .views import (
     UserSignInAPIView, AdventurePlaceListAPIView,
     CustomerDetailAPIView,
-    BookingDetailCreateAPIView,
-    FeedbackCreateAPIView, LogoutAPIView,UserSignup,GetUserAPIView,AdventurePackageDetailView
+    BookingDetailCreateAPIView,UserFeedbackCreateAPIView,
+    LogoutAPIView,UserSignup,GetUserAPIView,AdventurePackageDetailView
 )
 
 urlpatterns = [
@@ -17,7 +17,7 @@ urlpatterns = [
     path('api/adventure-places/', AdventurePlaceListAPIView.as_view(), name='adventure-place-list'),
     path('api/customer-details/', CustomerDetailAPIView.as_view(), name='customer-details-api'),
     path('api/booking-details', BookingDetailCreateAPIView.as_view(), name='booking_detail_create'),
-    path('api/feedback', FeedbackCreateAPIView.as_view(), name='feedback_create'),
+    path('api/user-feedback/', UserFeedbackCreateAPIView.as_view(), name='user-feedback-create'),
     path('api/logout', LogoutAPIView.as_view(), name='logout'),
     re_path("user", views.UserSignup.as_view())
 ]

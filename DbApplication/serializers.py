@@ -3,6 +3,7 @@ from .models import AdventurePlaceList, Destination, Travel, User
 from .models import CustomerDetail
 from .models import AdventurePackage
 from .models import BookingDetail
+from .models import UserFeedback
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -57,4 +58,10 @@ class UserSignInSerializer(serializers.Serializer):
 class BookingDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = BookingDetail
-        fields = ['id', 'name', 'mobile_number', 'email', 'address_proof', 'dates', 'package_details', 'payment_method']
+        fields = '__all__'
+
+class UserFeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserFeedback
+        fields = ['id', 'user', 'feedback_text', 'rating', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at']
