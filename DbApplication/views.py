@@ -1,29 +1,31 @@
 from xml.dom import ValidationErr
 from django.contrib.auth import authenticate,login
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.mail import EmailMessage
 from django.contrib.auth.models import User
 from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly
 from rest_framework.permissions import AllowAny
 from rest_framework.serializers import ValidationError
 from django.contrib.auth.hashers import check_password
 import random
 import logging
-from .models import AdventurePlace, CustomerDetail, AdventurePackage, BookingDetail,User
+from .models import AdventurePlaceList, CustomerDetail, AdventurePackage, BookingDetail,User,UserFeedback,TopDestination
 from .serializers import (
-    UserSerializer,UserSignInSerializer, AdventurePlaceSerializer,
-    AdventurePlaceDetailSerializer, CustomerDetailSerializer,
-    AdventurePackageSerializer, BookingDetailSerializer,
-    FeedbackSerializer
+    UserSerializer,UserSignInSerializer,
+    AdventurePlaceListSerializer, CustomerDetailSerializer,
+    BookingDetailSerializer,
+    UserFeedbackSerializer,AdventurePackageSerializer,TopDestinationSerializer
 )
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.exceptions import AuthenticationFailed
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-
+# from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 
 
 logger = logging.getLogger(__name__)
@@ -60,8 +62,11 @@ class UserSignup(APIView):
             print(e)
             return Response({'message': 'Unable to register user.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-class UserSignInAPIView(APIView):
-    def get(self, request):
+
+class GetUserAPIView(APIView):
+    authentication_classes = []  # Allow unauthenticated access
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
         username = request.data.get('username', '')
         password = request.data.get('password', '')
 
@@ -75,11 +80,11 @@ class UserSignInAPIView(APIView):
             return Response({'user': serializer.data}, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
-
+        
+class UserSignInAPIView(APIView):
     def post(self, request):
         username = request.data.get('username', '')
         password = request.data.get('password', '')
-        
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
@@ -100,118 +105,52 @@ class UserSignInAPIView(APIView):
             return Response({'user': user_data}, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
-
-class AdventurePlaceListAPIView(generics.ListAPIView):
-    queryset = AdventurePlace.objects.all()
-    serializer_class = AdventurePlaceSerializer
-    def get(self, request, *args, **kwargs):
-        # Customize the list of adventure places with details of activities
-        adventure_places = [
-            {"name": "Ladakh", "activities": "Trekking, Biking, River Rafting", "images": "ladakh_image.jpg"},
-            {"name": "Rishikesh", "activities": "Rafting, Yoga, Camping", "images": "rishikesh_image.jpg"},
-            {"name": "Manali", "activities": "Skiing, Paragliding, Hiking", "images": "manali_image.jpg"},
-            {"name": "Auli", "activities": "Skiing, Cable Car Ride, Trekking", "images": "auli_image.jpg"},
-            {"name": "Gulmarg", "activities": "Skiing, Gondola Ride, Golf", "images": "gulmarg_image.jpg"},
-            {"name": "Goa", "activities": "Beach Activities, Water Sports, Nightlife", "images": "goa_image.jpg"},
-            {"name": "Andaman", "activities": "Scuba Diving, Snorkeling, Island Hopping", "images": "andaman_image.jpg"},
-            {"name": "Caving in Meghalaya", "activities": "Caving, Adventure Exploration", "images": "meghalaya_image.jpg"},
-            {"name": "Spiti", "activities": "Trekking, Monastery Visits, Camping", "images": "spiti_image.jpg"},
-            {"name": "Dandeli", "activities": "River Rafting, Jungle Safari, Bird Watching", "images": "dandeli_image.jpg"},
-            {"name": "Hot Air Ballooning in Jaipur", "activities": "Hot Air Ballooning, City Tour", "images": "jaipur_image.jpg"},
-            {"name": "Paragliding in Bir", "activities": "Paragliding, Camping, Tibetan Colony Visit", "images": "bir_image.jpg"},
-            {"name": "Shimla", "activities": "Sightseeing, Shopping, Ice Skating", "images": "shimla_image.jpg"},
-            {"name": "Bike Trip to Leh", "activities": "Biking, Pangong Lake Visit, Nubra Valley", "images": "leh_image.jpg"},
-        ]
-
-        serializer = self.get_serializer(adventure_places, many=True)
-        return self.get_paginated_response(serializer.data)
     
-class AdventurePlaceDetailAPIView(generics.RetrieveAPIView):
-    queryset = AdventurePlace.objects.all()
-    serializer_class = AdventurePlaceDetailSerializer
-    lookup_field = 'id'  # Assuming 'id' is the parameter to identify the adventure place
+    
+
+        
+class AdventurePlaceListAPIView(generics.ListCreateAPIView):
+    queryset = AdventurePlaceList.objects.all()
+    serializer_class = AdventurePlaceListSerializer
+    parser_classes = (MultiPartParser, FormParser)
 
     def get(self, request, *args, **kwargs):
         try:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance)
-
-            # Customize the response with additional details
-            response_data = serializer.data
-            response_data['description'] = self.get_activity_description(instance.name)
-            
-            return Response(response_data)
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
         except Exception as e:
-            return Response({'message': 'Unable to retrieve adventure place details.'}, status=500)
-
-    def get_activity_description(self, place_name):
-        # You can customize the activity descriptions based on the adventure place
-        descriptions = {
-            "Ladakh": "Embark on a thrilling adventure in the majestic landscapes of Ladakh. Explore high mountain passes, "
-                      "experience the culture of local monasteries, and indulge in heart-pounding biking and river rafting.",
-
-            "Rishikesh": "Discover the spiritual charm of Rishikesh while enjoying exciting activities. Raft down the Ganges, "
-                         "practice yoga by the riverside, and experience the serene beauty of this holy city.",
-
-            "Manali": "Manali offers a perfect blend of adventure and tranquility. Enjoy skiing on the snowy slopes, "
-                      "experience the thrill of paragliding, and hike in the picturesque landscapes.",
-
-            "Auli": "Auli, known for its pristine beauty, is a paradise for ski enthusiasts. Glide through snow-covered slopes, "
-                    "take a cable car ride for breathtaking views, and trek amidst the Garhwal Himalayas.",
-
-            "Gulmarg":"Gulmarg's snow-covered slopes provide an ideal playground for snowboarding enthusiasts."
-                      "Experience the thrill of carving through powdery snow against the stunning backdrop of the Pir Panjal range.",
-
-            "Goa": "Dive into the vibrant underwater world of Goa with a scuba diving exploration."
-                   "Discover coral reefs, colorful marine life, and ancient shipwrecks."
-                   " Goa offers an unforgettable experience for diving enthusiasts.",
-
-            "Andaman":"Explore the crystal-clear waters of the Andaman Islands through a captivating snorkeling adventure."
-                      " Witness the diverse marine life, vibrant coral gardens, and pristine beaches",
-
-            "Caving in Meghalaya":"Embark on an underground expedition through the caves of Meghalaya."
-                                  " Discover hidden chambers, unique rock formations, and the fascinating subterranean world beneath the lush landscapes.",
-
-            "Spiti":"Challenge yourself with a high-altitude trek in the captivating landscapes of Spiti."
-                    "Trek through barren terrains, ancient monasteries, and lofty mountain passes.",
-
-            "Dandeli ":"Experience the thrill of river rafting combined with a wildlife safari in Dandeli."
-                        "Navigate through river rapids and explore the rich biodiversity of the Western Ghats.",
-
-            "Hot Air Ballooning in Jaipur":"Soar high above the Pink City with a hot air ballooning adventure in Jaipur."
-                                           "Marvel at the architectural wonders below and enjoy a bird's-eye view of the vibrant city.",
-
-            "Paragliding in Bir":"Take to the skies with a paragliding adventure in Bir Billing, often referred to as the 'Paragliding Capital of India.' "
-                                 "Soar over lush landscapes and experience the thrill of free-flying.",
-
-            "Shimla":"Explore the picturesque surroundings of Shimla with a nature biking expedition."
-                     "Ride through forested trails, apple orchards, and charming villages.",
-
-            "Bike Trip to Leh":"Embark on a legendary bike trip to Leh, traversing high mountain passes and winding roads."
-                               " Witness the stark beauty of Ladakh and the cultural richness of the region." 
-            # Add descriptions for other places
-        }
-
-        return descriptions.get(place_name, "Detailed description not available.")
+            return Response({'message': 'Unable to retrieve adventure place details.', 'error': str(e)}, status=500)
+        
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
     
 
 
-class CustomerDetailCreateAPIView(generics.CreateAPIView):
-    queryset = CustomerDetail.objects.all()
-    serializer_class = CustomerDetailSerializer
+class AdventurePackageDetailView(APIView):
+    def get(self, request, adventure_id, format=None):
+        try:
+            adventure_package = AdventurePackage.objects.get(adventure_id=adventure_id)
+            serializer = AdventurePackageSerializer(adventure_package)
+            return Response(serializer.data)
+        except AdventurePackage.DoesNotExist:
+            return Response({'message': 'Adventure Package not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'message': 'Unable to retrieve adventure package details.', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class CustomerDetailAPIView(APIView):
+    def post(self, request, format=None):
+        serializer = CustomerDetailSerializer(data=request.data)
 
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class AdventurePackageDetailAPIView(generics.RetrieveAPIView):
-    queryset = AdventurePackage.objects.all()
-    serializer_class = AdventurePackageSerializer
-    lookup_field = 'id'  # Assuming 'id' is the parameter to identify the adventure package
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
-    
 
 
 class BookingDetailCreateAPIView(generics.CreateAPIView):
@@ -231,21 +170,35 @@ class BookingDetailCreateAPIView(generics.CreateAPIView):
         email = EmailMessage(subject, message, from_email, to_email)
         email.send()
 
-
-
-class FeedbackCreateAPIView(generics.CreateAPIView):
-    serializer_class = FeedbackSerializer
-
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        response = super().create(request, *args, **kwargs)
+        return response
+
+
+
+class UserFeedbackCreateAPIView(generics.CreateAPIView):
+    queryset = UserFeedback.objects.all()
+    serializer_class = UserFeedbackSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        user = request.user if request.user.is_authenticated else None
+
+        # Exclude 'user' from the serializer's context if it's None
+        serializer_context = {'request': request}
+        if user is not None:
+            serializer_context['user'] = user
+
+        serializer = self.get_serializer(data=request.data, context=serializer_context)
         serializer.is_valid(raise_exception=True)
+        serializer.save(user=user)
+        return Response(serializer.data)
+    
 
-        feedback = serializer.validated_data['feedback']
-        # Process the feedback as needed (e.g., store in a database)
-
-        response_data = {'message': 'Feedback received successfully', 'feedback': feedback}
-        return Response(response_data)
-
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class LogoutAPIView(APIView):
@@ -259,3 +212,16 @@ class LogoutAPIView(APIView):
         request.auth.delete()
 
         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
+
+
+class TopDestinationListAPIView(generics.ListAPIView):
+    queryset = TopDestination.objects.all()
+    serializer_class = TopDestinationSerializer
+
+class TopDestinationDetailAPIView(generics.RetrieveAPIView):
+    queryset = TopDestination.objects.all()
+    serializer_class = TopDestinationSerializer
+
+class TopDestinationCreateAPIView(generics.CreateAPIView):
+    queryset = TopDestination.objects.all()
+    serializer_class = TopDestinationSerializer
