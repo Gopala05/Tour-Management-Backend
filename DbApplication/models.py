@@ -66,11 +66,10 @@ class Activity(models.Model):
         db_table = 'Activities'
 
 class AdventurePlaceList(models.Model):
-    id=models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
     activities = models.TextField()
-    images = models.ImageField(upload_to='adventure_places/', null=True, blank=True)
-    # description = models.TextField()
+    pictures = models.ImageField(upload_to='adventure_places/', null=True, blank=True)
 
     class Meta:
         db_table = 'AdventurePlaces'

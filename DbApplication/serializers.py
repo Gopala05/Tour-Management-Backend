@@ -34,7 +34,7 @@ class TravelSerializer(serializers.ModelSerializer):
 
 
 
-class AdventurePlaceDetailSerializer(serializers.ModelSerializer):
+class AdventurePlaceListSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdventurePlaceList
         fields = '__all__'  # or list the fields explicitly

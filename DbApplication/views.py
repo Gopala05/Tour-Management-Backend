@@ -1,5 +1,6 @@
 from xml.dom import ValidationErr
 from django.contrib.auth import authenticate,login
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.mail import EmailMessage
 from django.contrib.auth.models import User
 from rest_framework import status, generics
@@ -14,7 +15,7 @@ import logging
 from .models import AdventurePlaceList, CustomerDetail, AdventurePackage, BookingDetail,User,UserFeedback,TopDestination
 from .serializers import (
     UserSerializer,UserSignInSerializer,
-    AdventurePlaceDetailSerializer, CustomerDetailSerializer,
+    AdventurePlaceListSerializer, CustomerDetailSerializer,
     BookingDetailSerializer,
     UserFeedbackSerializer,AdventurePackageSerializer,TopDestinationSerializer
 )
@@ -23,7 +24,8 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework.exceptions import AuthenticationFailed
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.permissions import IsAuthenticated
+# from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 
 
 logger = logging.getLogger(__name__)
@@ -105,19 +107,29 @@ class UserSignInAPIView(APIView):
             return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
     
     
-class AdventurePlaceListAPIView(generics.ListAPIView):
+
+        
+class AdventurePlaceListAPIView(generics.ListCreateAPIView):
     queryset = AdventurePlaceList.objects.all()
-    serializer_class = AdventurePlaceDetailSerializer
+    serializer_class = AdventurePlaceListSerializer
+    parser_classes = (MultiPartParser, FormParser)
 
     def get(self, request, *args, **kwargs):
         try:
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset, many=True)
-
             return Response(serializer.data)
         except Exception as e:
             return Response({'message': 'Unable to retrieve adventure place details.', 'error': str(e)}, status=500)
+        
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
     
+
 
 class AdventurePackageDetailView(APIView):
     def get(self, request, adventure_id, format=None):
@@ -167,11 +179,26 @@ class BookingDetailCreateAPIView(generics.CreateAPIView):
 class UserFeedbackCreateAPIView(generics.CreateAPIView):
     queryset = UserFeedback.objects.all()
     serializer_class = UserFeedbackSerializer
-    permission_classes = [IsAuthenticated,IsAuthenticatedOrReadOnly]
+    permission_classes = [AllowAny]
 
-    def post(self, serializer):
-        serializer.save(user=self.request.user)
+    def post(self, request, *args, **kwargs):
+        user = request.user if request.user.is_authenticated else None
 
+        # Exclude 'user' from the serializer's context if it's None
+        serializer_context = {'request': request}
+        if user is not None:
+            serializer_context['user'] = user
+
+        serializer = self.get_serializer(data=request.data, context=serializer_context)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=user)
+        return Response(serializer.data)
+    
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class LogoutAPIView(APIView):
@@ -192,5 +219,9 @@ class TopDestinationListAPIView(generics.ListAPIView):
     serializer_class = TopDestinationSerializer
 
 class TopDestinationDetailAPIView(generics.RetrieveAPIView):
+    queryset = TopDestination.objects.all()
+    serializer_class = TopDestinationSerializer
+
+class TopDestinationCreateAPIView(generics.CreateAPIView):
     queryset = TopDestination.objects.all()
     serializer_class = TopDestinationSerializer

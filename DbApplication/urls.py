@@ -1,11 +1,13 @@
 from django.contrib import admin
 from django.urls import path, re_path
 from DbApplication import views
+from django.conf.urls.static import static
+
 from .views import (
     UserSignInAPIView, AdventurePlaceListAPIView,
     CustomerDetailAPIView,
     BookingDetailCreateAPIView,UserFeedbackCreateAPIView,
-    LogoutAPIView,UserSignup,GetUserAPIView,AdventurePackageDetailView,TopDestinationListAPIView, TopDestinationDetailAPIView
+    LogoutAPIView,UserSignup,GetUserAPIView,AdventurePackageDetailView,TopDestinationListAPIView, TopDestinationDetailAPIView,TopDestinationCreateAPIView
 )
 
 urlpatterns = [
@@ -21,5 +23,6 @@ urlpatterns = [
     path('api/logout', LogoutAPIView.as_view(), name='logout'),
     path('top-destinations/', TopDestinationListAPIView.as_view(), name='topdestination-list'),
     path('top-destinations/<int:pk>/', TopDestinationDetailAPIView.as_view(), name='topdestination-detail'),
+    path('top-destinations/create/', TopDestinationCreateAPIView.as_view(), name='topdestination-create'),
     re_path("user", views.UserSignup.as_view())
 ]
