@@ -126,3 +126,12 @@ class UserFeedback(models.Model):
 
     def __str__(self):
         return f'{self.user.username} - {self.created_at}'
+    
+class TopDestination(models.Model):
+    place_name = models.CharField(max_length=255)
+    no_of_places = models.IntegerField()
+    no_of_activities = models.IntegerField()
+    price_amount = models.CharField(max_length=20)
+
+    class Meta:
+        db_table = 'Top Destinations'

@@ -5,7 +5,7 @@ from .views import (
     UserSignInAPIView, AdventurePlaceListAPIView,
     CustomerDetailAPIView,
     BookingDetailCreateAPIView,UserFeedbackCreateAPIView,
-    LogoutAPIView,UserSignup,GetUserAPIView,AdventurePackageDetailView
+    LogoutAPIView,UserSignup,GetUserAPIView,AdventurePackageDetailView,TopDestinationListAPIView, TopDestinationDetailAPIView
 )
 
 urlpatterns = [
@@ -19,5 +19,7 @@ urlpatterns = [
     path('api/booking-details', BookingDetailCreateAPIView.as_view(), name='booking_detail_create'),
     path('api/user-feedback/', UserFeedbackCreateAPIView.as_view(), name='user-feedback-create'),
     path('api/logout', LogoutAPIView.as_view(), name='logout'),
+    path('top-destinations/', TopDestinationListAPIView.as_view(), name='topdestination-list'),
+    path('top-destinations/<int:pk>/', TopDestinationDetailAPIView.as_view(), name='topdestination-detail'),
     re_path("user", views.UserSignup.as_view())
 ]

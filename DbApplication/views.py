@@ -11,12 +11,12 @@ from rest_framework.serializers import ValidationError
 from django.contrib.auth.hashers import check_password
 import random
 import logging
-from .models import AdventurePlaceList, CustomerDetail, AdventurePackage, BookingDetail,User,UserFeedback
+from .models import AdventurePlaceList, CustomerDetail, AdventurePackage, BookingDetail,User,UserFeedback,TopDestination
 from .serializers import (
     UserSerializer,UserSignInSerializer,
     AdventurePlaceDetailSerializer, CustomerDetailSerializer,
     BookingDetailSerializer,
-    UserFeedbackSerializer,AdventurePackageSerializer
+    UserFeedbackSerializer,AdventurePackageSerializer,TopDestinationSerializer
 )
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -185,3 +185,12 @@ class LogoutAPIView(APIView):
         request.auth.delete()
 
         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
+
+
+class TopDestinationListAPIView(generics.ListAPIView):
+    queryset = TopDestination.objects.all()
+    serializer_class = TopDestinationSerializer
+
+class TopDestinationDetailAPIView(generics.RetrieveAPIView):
+    queryset = TopDestination.objects.all()
+    serializer_class = TopDestinationSerializer

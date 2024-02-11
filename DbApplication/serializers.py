@@ -4,6 +4,7 @@ from .models import CustomerDetail
 from .models import AdventurePackage
 from .models import BookingDetail
 from .models import UserFeedback
+from .models import TopDestination
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -65,3 +66,8 @@ class UserFeedbackSerializer(serializers.ModelSerializer):
         model = UserFeedback
         fields = ['id', 'user', 'feedback_text', 'rating', 'created_at']
         read_only_fields = ['id', 'user', 'created_at']
+
+class TopDestinationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TopDestination
+        fields = '__all__'
