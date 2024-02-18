@@ -1,86 +1,65 @@
-from xml.dom import ValidationErr
 from django.db import transaction
-from django.contrib.auth import authenticate,login
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.core.mail import EmailMessage
-from django.contrib.auth.models import User
 from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly
 from rest_framework.permissions import AllowAny
-from rest_framework.serializers import ValidationError
-from django.contrib.auth.hashers import check_password
-import random
 import logging
-from .models import AdventurePlaceList, CustomerDetail, AdventurePackage, BookingDetail,User,UserFeedback,TopDestination
-from .serializers import (
-    UserSerializer,UserSignInSerializer,
-    AdventurePlaceListSerializer, CustomerDetailSerializer,
-    BookingDetailSerializer,
-    UserFeedbackSerializer,AdventurePackageSerializer,TopDestinationSerializer
-)
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
-from rest_framework.exceptions import AuthenticationFailed
+from .models import *
+from .serializers import *
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-# from rest_framework.permissions import IsAuthenticated
-from rest_framework.permissions import AllowAny
-
+from .utils import *
 
 logger = logging.getLogger(__name__)
-
 
 class UserSignup(APIView):
     """
     API endpoint for user signup.
     """
     def post(self, request):
-        try:
-            data = request.data
-            serializer = UserSerializer(data=data)
-            serializer.is_valid(raise_exception=True)
+        data = request.data
 
-            if User.objects.filter(username=data['username']).exists():
-                return Response({'message': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(username=data['username']).exists():
+            return Response({'message': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            if User.objects.filter(email=data['email']).exists():
-                return Response({'message': 'Email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
-
-            user = serializer.save()
-
-            response_data = {
-                'message': 'User registered successfully',
-                'user': serializer.data
-            }
-
-            return Response(response_data, status=status.HTTP_201_CREATED)
-
-        except ValidationError as e:
-            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            print(e)
-            return Response({'message': 'Unable to register user.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if User.objects.filter(email=data['email']).exists():
+            return Response({'message': 'Email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
         
+        serializer = UserSerializer(data=data)
+        
+        if serializer.is_valid():
+            user = serializer.save()
+            try:
+                username = user.username
+                password = user.first_name
+                firstname = user.first_name
+                lastname = user.last_name
+            except Exception as e:
+                print(e)
+                return JsonResponse({"message": "Provide required Information."},status=status.HTTP_400_BAD_REQUEST)
 
-class GetUserAPIView(APIView):
-    authentication_classes = []  # Allow unauthenticated access
-    permission_classes = [IsAuthenticated]
-    def post(self, request):
-        username = request.data.get('username', '')
-        password = request.data.get('password', '')
-
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        if check_password(password, user.password):
-            serializer = UserSerializer(user)  
-            return Response({'user': serializer.data}, status=status.HTTP_200_OK)
-        else:
-            return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
+            try:
+                keycloak_admin = getKeycloakAdmin()
+                new_user = keycloak_admin.create_user({
+                        "username": username,
+                        "enabled": True,
+                        "firstName": firstname,
+                        "lastName": lastname,
+                        "credentials": [{"value": password,"type": "password"}]
+                    }
+                )  
+                                        
+            except Exception as e:
+                user.delete()
+                print(e)
+                logger.error(e)
+                return JsonResponse({"message": "Error occurred when creating user."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            
+            response = {
+                'message': 'User registered successfully',
+                'user': serializer.data,
+            }
+            return Response(response, status=status.HTTP_201_CREATED)
         
 class UserSignInAPIView(APIView):
     def post(self, request):
@@ -103,13 +82,48 @@ class UserSignInAPIView(APIView):
                 'gender': user.gender,
                 'alternate_mobile_number': user.alternate_mobile_number,
             }
-            return Response({'user': user_data}, status=status.HTTP_200_OK)
+            try:
+                keycloak_openid = getKeycloak()
+                try:
+                    username = user.username
+                    password = user.first_name
+                    
+                    token = keycloak_openid.token(username,password)
+
+                except  Exception as e:
+                    logger.error(e)
+                    return JsonResponse({"message": "Invalid user credentials."},status=status.HTTP_401_UNAUTHORIZED)
+                
+                resp = {
+                    "token" : token['access_token'], 
+                    "expires_in" : token['expires_in'],
+                    "refresh_token" : token['refresh_token'],
+                    "refresh_expires_in" : token['refresh_expires_in']
+                    }
+                return Response({'message': 'Sign In successful','member':user_data,'token':resp}, status=status.HTTP_202_ACCEPTED)
+            except Exception as e:
+                logger.error(e)
+                return JsonResponse({"message": "Error Validating user credentials."},status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        else:
+            return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+class GetUserAPIView(APIView):
+    def post(self, request):
+        username = request.data.get('username', '')
+        password = request.data.get('password', '')
+
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if (password==user.password):
+            serializer = UserSerializer(user).data  
+            return Response({'user': serializer}, status=status.HTTP_200_OK)
+
         else:
             return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
     
-    
-
-        
 class AdventurePlaceListAPIView(generics.ListCreateAPIView):
     queryset = AdventurePlaceList.objects.all()
     serializer_class = AdventurePlaceListSerializer
@@ -130,8 +144,6 @@ class AdventurePlaceListAPIView(generics.ListCreateAPIView):
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
     
-
-
 class AdventurePackageDetailView(APIView):
     def get(self, request, format=None):
         try:
@@ -140,7 +152,6 @@ class AdventurePackageDetailView(APIView):
             if not adventure_id:
                 return Response({'message': 'Adventure ID not provided in the query parameters'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Adjust the lookup field to match your actual primary key field
             adventure_package = AdventurePackage.objects.get(adventure_id=adventure_id)
             serializer = AdventurePackageSerializer(adventure_package)
             return Response(serializer.data)
@@ -148,8 +159,6 @@ class AdventurePackageDetailView(APIView):
             return Response({'message': 'Adventure Package not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'message': 'Unable to retrieve adventure package details.', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 
 class CustomerDetailAPIView(APIView):
     def post(self, request, format=None):
@@ -165,13 +174,11 @@ class CustomerDetailAPIView(APIView):
         serializer = CustomerDetailSerializer(customer_details, many=True)
         return Response(serializer.data)
 
-
-
 class BookingDetailListCreateAPIView(generics.ListCreateAPIView):
     queryset = BookingDetail.objects.all()
     serializer_class = BookingDetailSerializer
 
-    def get_queryset(self):
+    def get(self):
         queryset = BookingDetail.objects.all()
         booking_id = self.request.query_params.get('id')
 
@@ -179,7 +186,7 @@ class BookingDetailListCreateAPIView(generics.ListCreateAPIView):
             queryset = queryset.filter(booking_id=booking_id)
         return queryset
     
-    def create(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         try:
             with transaction.atomic():
                 response = super().create(request, *args, **kwargs)
@@ -244,8 +251,6 @@ class BookingDetailListCreateAPIView(generics.ListCreateAPIView):
             'data': serializer.data
         }, status=status.HTTP_200_OK)
 
-
-
 class UserFeedbackCreateAPIView(generics.CreateAPIView):
     queryset = UserFeedback.objects.all()
     serializer_class = UserFeedbackSerializer
@@ -270,20 +275,14 @@ class UserFeedbackCreateAPIView(generics.CreateAPIView):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-
 class LogoutAPIView(APIView):
     permission_classes = []
 
     def post(self, request):
-        # Perform logout actions if needed
-        # For example, invalidate the authentication token or session
-
-        # Assuming you are using Token-based authentication
         if request.auth:
             request.auth.delete()
 
         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
-
 
 class TopDestinationListAPIView(generics.ListAPIView):
     queryset = TopDestination.objects.all()
