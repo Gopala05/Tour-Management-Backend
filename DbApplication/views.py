@@ -1,26 +1,14 @@
-from xml.dom import ValidationErr
 from django.db import transaction
-from django.contrib.auth import authenticate,login
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.core.mail import EmailMessage
-from django.contrib.auth.models import User
 from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly
 from rest_framework.permissions import AllowAny
-from rest_framework.serializers import ValidationError
-from django.contrib.auth.hashers import check_password
-import random
 import logging
 from .models import *
 from .serializers import *
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
-from rest_framework.exceptions import AuthenticationFailed
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework.permissions import AllowAny
+from .utils import *
 
 logger = logging.getLogger(__name__)
 
@@ -29,47 +17,49 @@ class UserSignup(APIView):
     API endpoint for user signup.
     """
     def post(self, request):
-        try:
-            data = request.data
-            serializer = UserSerializer(data=data)
-            serializer.is_valid(raise_exception=True)
+        data = request.data
 
-            if User.objects.filter(username=data['username']).exists():
-                return Response({'message': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(username=data['username']).exists():
+            return Response({'message': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            if User.objects.filter(email=data['email']).exists():
-                return Response({'message': 'Email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
-
-            user = serializer.save()
-
-            response_data = {
-                'message': 'User registered successfully',
-                'user': serializer.data
-            }
-
-            return Response(response_data, status=status.HTTP_201_CREATED)
-
-        except ValidationError as e:
-            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            print(e)
-            return Response({'message': 'Unable to register user.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if User.objects.filter(email=data['email']).exists():
+            return Response({'message': 'Email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
         
-class GetUserAPIView(APIView):
-    def post(self, request):
-        username = request.data.get('username', '')
-        password = request.data.get('password', '')
+        serializer = UserSerializer(data=data)
+        
+        if serializer.is_valid():
+            user = serializer.save()
+            try:
+                username = user.username
+                password = user.first_name
+                firstname = user.first_name
+                lastname = user.last_name
+            except Exception as e:
+                print(e)
+                return JsonResponse({"message": "Provide required Information."},status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        if check_password(password, user.password):
-            serializer = UserSerializer(user)  
-            return Response({'user': serializer.data}, status=status.HTTP_200_OK)
-        else:
-            return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
+            try:
+                keycloak_admin = getKeycloakAdmin()
+                new_user = keycloak_admin.create_user({
+                        "username": username,
+                        "enabled": True,
+                        "firstName": firstname,
+                        "lastName": lastname,
+                        "credentials": [{"value": password,"type": "password"}]
+                    }
+                )  
+                                        
+            except Exception as e:
+                user.delete()
+                print(e)
+                logger.error(e)
+                return JsonResponse({"message": "Error occurred when creating user."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            
+            response = {
+                'message': 'User registered successfully',
+                'user': serializer.data,
+            }
+            return Response(response, status=status.HTTP_201_CREATED)
         
 class UserSignInAPIView(APIView):
     def post(self, request):
@@ -92,7 +82,45 @@ class UserSignInAPIView(APIView):
                 'gender': user.gender,
                 'alternate_mobile_number': user.alternate_mobile_number,
             }
-            return Response({'user': user_data}, status=status.HTTP_200_OK)
+            try:
+                keycloak_openid = getKeycloak()
+                try:
+                    username = user.username
+                    password = user.first_name
+                    
+                    token = keycloak_openid.token(username,password)
+
+                except  Exception as e:
+                    logger.error(e)
+                    return JsonResponse({"message": "Invalid user credentials."},status=status.HTTP_401_UNAUTHORIZED)
+                
+                resp = {
+                    "token" : token['access_token'], 
+                    "expires_in" : token['expires_in'],
+                    "refresh_token" : token['refresh_token'],
+                    "refresh_expires_in" : token['refresh_expires_in']
+                    }
+                return Response({'message': 'Sign In successful','member':user_data,'token':resp}, status=status.HTTP_202_ACCEPTED)
+            except Exception as e:
+                logger.error(e)
+                return JsonResponse({"message": "Error Validating user credentials."},status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        else:
+            return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+class GetUserAPIView(APIView):
+    def post(self, request):
+        username = request.data.get('username', '')
+        password = request.data.get('password', '')
+
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if (password==user.password):
+            serializer = UserSerializer(user).data  
+            return Response({'user': serializer}, status=status.HTTP_200_OK)
+
         else:
             return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
     
@@ -150,7 +178,7 @@ class BookingDetailListCreateAPIView(generics.ListCreateAPIView):
     queryset = BookingDetail.objects.all()
     serializer_class = BookingDetailSerializer
 
-    def get_queryset(self):
+    def get(self):
         queryset = BookingDetail.objects.all()
         booking_id = self.request.query_params.get('id')
 
@@ -158,7 +186,7 @@ class BookingDetailListCreateAPIView(generics.ListCreateAPIView):
             queryset = queryset.filter(booking_id=booking_id)
         return queryset
     
-    def create(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         try:
             with transaction.atomic():
                 response = super().create(request, *args, **kwargs)
