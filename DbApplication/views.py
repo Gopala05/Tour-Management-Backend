@@ -13,24 +13,16 @@ from rest_framework.serializers import ValidationError
 from django.contrib.auth.hashers import check_password
 import random
 import logging
-from .models import AdventurePlaceList, CustomerDetail, AdventurePackage, BookingDetail,User,UserFeedback,TopDestination
-from .serializers import (
-    UserSerializer,UserSignInSerializer,
-    AdventurePlaceListSerializer, CustomerDetailSerializer,
-    BookingDetailSerializer,
-    UserFeedbackSerializer,AdventurePackageSerializer,TopDestinationSerializer
-)
+from .models import *
+from .serializers import *
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.exceptions import AuthenticationFailed
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-# from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
 
-
 logger = logging.getLogger(__name__)
-
 
 class UserSignup(APIView):
     """
@@ -63,10 +55,7 @@ class UserSignup(APIView):
             print(e)
             return Response({'message': 'Unable to register user.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-
 class GetUserAPIView(APIView):
-    authentication_classes = []  # Allow unauthenticated access
-    permission_classes = [IsAuthenticated]
     def post(self, request):
         username = request.data.get('username', '')
         password = request.data.get('password', '')
@@ -107,9 +96,6 @@ class UserSignInAPIView(APIView):
         else:
             return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
     
-    
-
-        
 class AdventurePlaceListAPIView(generics.ListCreateAPIView):
     queryset = AdventurePlaceList.objects.all()
     serializer_class = AdventurePlaceListSerializer
@@ -130,8 +116,6 @@ class AdventurePlaceListAPIView(generics.ListCreateAPIView):
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
     
-
-
 class AdventurePackageDetailView(APIView):
     def get(self, request, format=None):
         try:
@@ -140,7 +124,6 @@ class AdventurePackageDetailView(APIView):
             if not adventure_id:
                 return Response({'message': 'Adventure ID not provided in the query parameters'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Adjust the lookup field to match your actual primary key field
             adventure_package = AdventurePackage.objects.get(adventure_id=adventure_id)
             serializer = AdventurePackageSerializer(adventure_package)
             return Response(serializer.data)
@@ -148,8 +131,6 @@ class AdventurePackageDetailView(APIView):
             return Response({'message': 'Adventure Package not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'message': 'Unable to retrieve adventure package details.', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 
 class CustomerDetailAPIView(APIView):
     def post(self, request, format=None):
@@ -164,8 +145,6 @@ class CustomerDetailAPIView(APIView):
         customer_details = CustomerDetail.objects.all()
         serializer = CustomerDetailSerializer(customer_details, many=True)
         return Response(serializer.data)
-
-
 
 class BookingDetailListCreateAPIView(generics.ListCreateAPIView):
     queryset = BookingDetail.objects.all()
@@ -244,8 +223,6 @@ class BookingDetailListCreateAPIView(generics.ListCreateAPIView):
             'data': serializer.data
         }, status=status.HTTP_200_OK)
 
-
-
 class UserFeedbackCreateAPIView(generics.CreateAPIView):
     queryset = UserFeedback.objects.all()
     serializer_class = UserFeedbackSerializer
@@ -270,20 +247,14 @@ class UserFeedbackCreateAPIView(generics.CreateAPIView):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-
 class LogoutAPIView(APIView):
     permission_classes = []
 
     def post(self, request):
-        # Perform logout actions if needed
-        # For example, invalidate the authentication token or session
-
-        # Assuming you are using Token-based authentication
         if request.auth:
             request.auth.delete()
 
         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
-
 
 class TopDestinationListAPIView(generics.ListAPIView):
     queryset = TopDestination.objects.all()

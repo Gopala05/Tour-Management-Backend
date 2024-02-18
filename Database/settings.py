@@ -58,8 +58,6 @@ ALLOWED_HOSTS = ['*']
 
 DJANGO_PORT = os.environ.get('DJANGO_PORT')
 
-ELASTIC_URL = os.environ.get('ELASTIC_URL')
-
 # Application definition
 
 INSTALLED_APPS = [
