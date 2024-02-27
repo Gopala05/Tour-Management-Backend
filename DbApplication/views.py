@@ -1,6 +1,8 @@
+from django.db.models import Max
 from xml.dom import ValidationErr
 from django.db import transaction
 from django.contrib.auth import authenticate,login
+from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.mail import EmailMessage
 from django.contrib.auth.models import User
@@ -31,7 +33,6 @@ from rest_framework.permissions import AllowAny
 
 logger = logging.getLogger(__name__)
 
-
 class UserSignup(APIView):
     """
     API endpoint for user signup.
@@ -48,7 +49,11 @@ class UserSignup(APIView):
             if User.objects.filter(email=data['email']).exists():
                 return Response({'message': 'Email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            user = serializer.save()
+            # Get the maximum user_id and increment it by 1
+            max_user_id = User.objects.all().aggregate(Max('user_id'))['user_id__max']
+            user_id = max_user_id + 1 if max_user_id is not None else 1
+
+            user = serializer.save(user_id=user_id)  # Assuming user_id is a field in your serializer
 
             response_data = {
                 'message': 'User registered successfully',
@@ -62,7 +67,6 @@ class UserSignup(APIView):
         except Exception as e:
             print(e)
             return Response({'message': 'Unable to register user.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
 
 class GetUserAPIView(APIView):
     authentication_classes = []  # Allow unauthenticated access
@@ -178,48 +182,57 @@ class BookingDetailListCreateAPIView(generics.ListCreateAPIView):
         if booking_id:
             queryset = queryset.filter(booking_id=booking_id)
         return queryset
-    
-    def create(self, request, *args, **kwargs):
+
+    def post(self, request, *args, **kwargs):
         try:
-            with transaction.atomic():
-                response = super().create(request, *args, **kwargs)
-                booking_id = response.data.get('booking_id')
+            user_id = request.data.get('user_id')
+            adventure_id = request.data.get('adventure_id')
+            dates = request.data.get('dates')
 
-                # Fetch the booking details after committing the transaction
-                booking_instance = BookingDetail.objects.get(booking_id=booking_id)
+            # Fetch user details
+            user = get_object_or_404(User, user_id=user_id)
 
-                confirmation_message = f'Thank you for your booking! Here are your booking details:\n\n'
-                confirmation_message += f'Booking ID: {booking_instance.booking_id}\n'
-                confirmation_message += f'Name: {booking_instance.name}\n'
-                confirmation_message += f'Mobile Number: {booking_instance.mobile_number}\n'
-                confirmation_message += f'Email: {booking_instance.email}\n'
-                confirmation_message += f'Dates: {booking_instance.dates}\n'
-                confirmation_message += f'Package Details: {booking_instance.package_details}\n\n'
-                confirmation_message += 'We look forward to serving you.'
+            # Fetch adventure place details
+            adventure_place = get_object_or_404(AdventurePlaceList, adventure_id=adventure_id)
 
-                # Include booking details and confirmation message in the response
-                response.data['booking_details'] = {
-                    'booking_id': booking_instance.booking_id,
-                    'name': booking_instance.name,
-                    'mobile_number': booking_instance.mobile_number,
-                    'email': booking_instance.email,
-                    'dates': booking_instance.dates,
-                    'package_details': booking_instance.package_details,
-                }
-                response.data['confirmation_message'] = confirmation_message
+            # Create booking detail
+            booking_detail = BookingDetail.objects.create(
+                name=user.username,
+                mobile_number=user.mobile_number,
+                email=user.email,
+                dates=dates,
+                package_name=adventure_place.package_name,
+                activities=adventure_place.activities
+            )
 
-                return Response({
-                    'status': 'Booking created successfully',
-                    'subject': 'Booking Confirmation',
-                    'message': confirmation_message,
-                    'booking_details': response.data['booking_details']
-                }, status=status.HTTP_201_CREATED)
+            # Prepare response data
+            response_data = {
+                'message': 'Booking created successfully. Thank you for your booking. Here are your booking details.',
+                'booking_id': booking_detail.booking_id,
+                'username': user.username,
+                'password': user.password,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'mobile_number': user.mobile_number,
+                'email': user.email,
+                'aadhar_number': user.aadhar_number,
+                'gender': user.gender,
+                'alternate_mobile_number': user.alternate_mobile_number,
+                'address': user.address,
+                'date_of_birth': user.date_of_birth,
+                'dates': booking_detail.dates,
+                'package_name': booking_detail.package_name,
+                'activities': booking_detail.activities
+            }
 
-        except BookingDetail.DoesNotExist:
-            return Response({'error': 'BookingDetail not found after creation'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(response_data, status=status.HTTP_201_CREATED)
+
+        except User.DoesNotExist:
+            return Response({'error': 'User does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+        except AdventurePlaceList.DoesNotExist:
+            return Response({'error': 'AdventurePlace does not exist'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
 
@@ -252,17 +265,10 @@ class UserFeedbackCreateAPIView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        user = request.user if request.user.is_authenticated else None
-
-        # Exclude 'user' from the serializer's context if it's None
-        serializer_context = {'request': request}
-        if user is not None:
-            serializer_context['user'] = user
-
-        serializer = self.get_serializer(data=request.data, context=serializer_context)
+        serializer = UserFeedbackSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(user=user)
-        return Response(serializer.data)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
     
 
     def get(self, request, *args, **kwargs):

@@ -5,16 +5,18 @@ from django.conf import settings
 
 class User(models.Model):
     user_id = models.AutoField(primary_key=True)
-    username = models.CharField(max_length=60)
+    username = models.CharField(max_length=60, unique=True)
     password = models.CharField(max_length=45)
-    first_name = models.CharField(max_length=30, blank=True, null=True)
+    first_name = models.CharField(max_length=30,default="Anamika")
     last_name = models.CharField(max_length=30, blank=True, null=True)
     mobile_number = models.CharField(max_length=15, blank=True, null=True)
-    email = models.EmailField(default='default_email')  # Change 'email_id' to 'email'
-    aadhar_number = models.CharField(max_length=20, default='default_aadhar_value')
-    gender = models.CharField(max_length=10, null=True)
+    email = models.EmailField(unique=True)
+    aadhar_number = models.CharField(max_length=20)
+    gender = models.CharField(max_length=10)
     alternate_mobile_number = models.CharField(max_length=15, null=True, blank=True)
-
+    address = models.TextField(null=True,blank=True)
+    date_of_birth = models.DateField(default='1900-01-01')
+    
     class Meta:
         db_table = 'Users'
 
@@ -66,13 +68,14 @@ class Activity(models.Model):
         db_table = 'Activities'
 
 class AdventurePlaceList(models.Model):
-    id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=255)
+    adventure_id = models.AutoField(primary_key=True)
+    package_name = models.CharField(max_length=255)
     activities = models.TextField()
-    pictures = models.ImageField(upload_to='adventure_places/', null=True, blank=True)
+    pictures = models.ImageField(upload_to='adventure_places/')
 
     class Meta:
         db_table = 'AdventurePlaces'
+
 
 class CustomerDetail(models.Model):
     id = models.AutoField(primary_key=True)
@@ -98,10 +101,9 @@ class BookingDetail(models.Model):
     name = models.CharField(max_length=255)
     mobile_number = models.CharField(max_length=15)
     email = models.EmailField()
-    address_proof = models.FileField(upload_to='booking_address_proofs/', null=True, blank=True)
     dates = models.DateField()
-    package_details = models.TextField()
-
+    package_name = models.CharField(max_length=255)
+    activities = models.TextField()
     class Meta:
         db_table = 'BookingDetail'
 
@@ -114,7 +116,7 @@ class UserFeedback(models.Model):
         (5, '5 - Excellent'),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
     feedback_text = models.TextField()
     rating = models.IntegerField(choices=RATING_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -124,8 +126,7 @@ class UserFeedback(models.Model):
         db_table = 'User Feedback'
 
     def __str__(self):
-        return f'{self.user.username} - {self.created_at}'
-    
+        return f'{self.user.username if self.user else "Anonymous"} - {self.created_at}'
 class TopDestination(models.Model):
     place_name = models.CharField(max_length=255)
     no_of_places = models.IntegerField()
