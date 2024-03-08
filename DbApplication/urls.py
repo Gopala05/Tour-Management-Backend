@@ -2,13 +2,7 @@ from django.contrib import admin
 from django.urls import path, re_path
 from DbApplication import views
 from django.conf.urls.static import static
-
-from .views import (
-    UserSignInAPIView, AdventurePlaceListAPIView,
-    CustomerDetailAPIView,
-    BookingDetailListCreateAPIView,UserFeedbackCreateAPIView,
-    LogoutAPIView,UserSignup,GetUserAPIView,AdventurePackageDetailView,TopDestinationListAPIView, TopDestinationDetailAPIView,TopDestinationCreateAPIView
-)
+from .views import *
 
 urlpatterns = [
     path('admin', admin.site.urls),

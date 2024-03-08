@@ -1,8 +1,6 @@
 from django.db import models
 from django.conf import settings
 
-
-
 class User(models.Model):
     user_id = models.AutoField(primary_key=True)
     username = models.CharField(max_length=60, unique=True)
@@ -19,8 +17,6 @@ class User(models.Model):
     
     class Meta:
         db_table = 'Users'
-
-
 
 class Travel(models.Model):
     travel_id = models.AutoField(primary_key=True)

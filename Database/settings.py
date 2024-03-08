@@ -58,8 +58,6 @@ ALLOWED_HOSTS = ['*']
 
 DJANGO_PORT = os.environ.get('DJANGO_PORT')
 
-ELASTIC_URL = os.environ.get('ELASTIC_URL')
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -75,7 +73,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    # 'deptfamily.auth_middleware.AuthMiddleware',
+    'DbApplication.auth_middleware.AuthMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -92,7 +90,7 @@ KEYCLOAK_CONFIG = {
     'KEYCLOAK_CLIENT_ID': os.environ.get('KEYCLOAK_CLIENT_ID'),
     'KEYCLOAK_SERVER_URL': os.environ.get('KEYCLOAK_SERVER_URL'),
     'KEYCLOAK_CLIENT_SECRET_KEY': os.environ.get('KEYCLOAK_CLIENT_SECRET_KEY'),
-    'EXCLUDE_PATH': ['user-gen-otp','user-verify-otp','create-user','login','logout','playground','docs','refresh-token'],
+    'EXCLUDE_PATH': ['create_user', 'sign_in', 'logout', 'get_user', 'customer-details', 'refresh-token'],
     'KEYCLOAK_TEST_ADMIN_USER' : os.environ.get('KEYCLOAK_TEST_ADMIN_USER'),
     'KEYCLOAK_TEST_ADMIN_PASSWORD' : os.environ.get('KEYCLOAK_TEST_ADMIN_PASSWORD')
 }
