@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status, generics
 from rest_framework.response import Response
@@ -25,27 +26,25 @@ class UserSignup(APIView):
         if User.objects.filter(email=data['email']).exists():
             return Response({'message': 'Email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
         
+        if User.objects.filter(aadhar_number=data['aadhar_number']).exists():
+            return Response({'message': 'Aadhar already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if User.objects.filter(mobile_number=data['mobile_number']).exists():
+            return Response({'message': 'Mobile Number already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        
         serializer = UserSerializer(data=data)
         
         if serializer.is_valid():
             user = serializer.save()
-            try:
-                username = user.username
-                password = user.first_name
-                firstname = user.first_name
-                lastname = user.last_name
-            except Exception as e:
-                print(e)
-                return JsonResponse({"message": "Provide required Information."},status=status.HTTP_400_BAD_REQUEST)
 
             try:
                 keycloak_admin = getKeycloakAdmin()
                 new_user = keycloak_admin.create_user({
-                        "username": username,
+                        "username": user.username,
                         "enabled": True,
-                        "firstName": firstname,
-                        "lastName": lastname,
-                        "credentials": [{"value": password,"type": "password"}]
+                        "firstName": user.first_name,
+                        "lastName": user.last_name,
+                        "credentials": [{"value": user.first_name,"type": "password"}]
                     }
                 )  
                                         
@@ -61,7 +60,7 @@ class UserSignup(APIView):
             }
             return Response(response, status=status.HTTP_201_CREATED)
         
-class UserSignInAPIView(APIView):
+class UserSignIn(APIView):
     def post(self, request):
         username = request.data.get('username', '')
         password = request.data.get('password', '')
@@ -80,7 +79,6 @@ class UserSignInAPIView(APIView):
                 'email': user.email,
                 'aadhar_number': user.aadhar_number,
                 'gender': user.gender,
-                'alternate_mobile_number': user.alternate_mobile_number,
             }
             try:
                 keycloak_openid = getKeycloak()
@@ -100,182 +98,225 @@ class UserSignInAPIView(APIView):
                     "refresh_token" : token['refresh_token'],
                     "refresh_expires_in" : token['refresh_expires_in']
                     }
-                return Response({'message': 'Sign In successful','member':user_data,'token':resp}, status=status.HTTP_202_ACCEPTED)
+                return Response({'message': 'Sign In successful','user':user_data,'token':resp}, status=status.HTTP_202_ACCEPTED)
             except Exception as e:
                 logger.error(e)
                 return JsonResponse({"message": "Error Validating user credentials."},status=status.HTTP_503_SERVICE_UNAVAILABLE)
         else:
             return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
         
-class GetUserAPIView(APIView):
+class AdminSignup(APIView):
+    """
+    API endpoint for admin signup.
+    """
     def post(self, request):
-        username = request.data.get('username', '')
+        data = request.data
+
+        if Admin.objects.filter(admin_name=data['admin_name']).exists():
+            return Response({'message': 'Admin name already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if Admin.objects.filter(email=data['email']).exists():
+            return Response({'message': 'Email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if Admin.objects.filter(mobile_number=data['mobile_number']).exists():
+            return Response({'message': 'Mobile Number already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = AdminSerializer(data=data)
+        
+        if serializer.is_valid():
+            admin = serializer.save()
+
+            try:
+                keycloak_admin = getKeycloakAdmin()
+                new_user = keycloak_admin.create_user({
+                        "username": admin.admin_name,
+                        "enabled": True,
+                        "credentials": [{"value": admin.password,"type": "password"}]
+                    }
+                )  
+                                        
+            except Exception as e:
+                admin.delete()
+                print(e)
+                logger.error(e)
+                return JsonResponse({"message": "Error occurred when creating user."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            
+            response = {
+                'message': 'User registered successfully',
+                'user': serializer.data,
+            }
+            return Response(response, status=status.HTTP_201_CREATED)
+        
+class AdminSignIn(APIView):
+    def post(self, request):
+        admin_name = request.data.get('admin_name', '')
         password = request.data.get('password', '')
+        try:
+            admin = Admin.objects.get(admin_name=admin_name)
+        except Admin.DoesNotExist:
+            return Response({'error': 'Admin Doesnt exist'}, status=status.HTTP_404_NOT_FOUND)
+
+        if (password == admin.password):
+            admin_data = {
+                'admin_id': admin.admin_id,
+                'admin_name': admin.admin_name,
+                'mobile_number': admin.mobile_number,
+                'email': admin.email,
+            }
+            try:
+                keycloak_openid = getKeycloak()
+                try:
+                    username = admin.admin_name
+                    password = admin.password
+                    
+                    token = keycloak_openid.token(username,password)
+
+                except  Exception as e:
+                    logger.error(e)
+                    return JsonResponse({"message": "Invalid user credentials."},status=status.HTTP_401_UNAUTHORIZED)
+                
+                resp = {
+                    "token" : token['access_token'], 
+                    "expires_in" : token['expires_in'],
+                    "refresh_token" : token['refresh_token'],
+                    "refresh_expires_in" : token['refresh_expires_in']
+                    }
+                return Response({'message': 'Sign In successful','admin':admin_data,'token':resp}, status=status.HTTP_202_ACCEPTED)
+            except Exception as e:
+                logger.error(e)
+                return JsonResponse({"message": "Error Validating user credentials."},status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        else:
+            return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+class GetUser(APIView):
+    def post(self, request):
+        id = self.request.query_params.get('user_id')
 
         try:
-            user = User.objects.get(username=username)
+            user = User.objects.get(user_id=id)
         except User.DoesNotExist:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        if (password==user.password):
-            serializer = UserSerializer(user).data  
-            return Response({'user': serializer}, status=status.HTTP_200_OK)
-
-        else:
-            return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
+        serializer = UserSerializer(user).data  
+        return Response({'user': serializer}, status=status.HTTP_200_OK)
     
-class AdventurePlaceListAPIView(generics.ListCreateAPIView):
-    queryset = AdventurePlaceList.objects.all()
-    serializer_class = AdventurePlaceListSerializer
-    parser_classes = (MultiPartParser, FormParser)
-
-    def get(self, request, *args, **kwargs):
+class AdventurePackages(APIView):
+    def get(self, request):
         try:
-            queryset = self.get_queryset()
-            serializer = self.get_serializer(queryset, many=True)
-            return Response(serializer.data)
+            data = AdventurePackage.objects.all()
+            serializer = AdventurePackageSerializer(data, many=True)
+            return Response({"places": serializer.data}, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({'message': 'Unable to retrieve adventure place details.', 'error': str(e)}, status=500)
+            return Response({'message': 'Unable to retrieve adventure place details.'}, status=500)
         
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+class CreateAdventurePackagres(APIView):
+    def post(self, request):
+        payload = request.data
+        if AdventurePackage.objects.filter(locations=payload['locations']).exists():
+            return Response({'message': 'Adventure Package already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = AdventurePackageSerializer(data=payload)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
-    
-class AdventurePackageDetailView(APIView):
-    def get(self, request, format=None):
-        try:
-            adventure_id = request.query_params.get('id')
+            return Response({"details": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-            if not adventure_id:
-                return Response({'message': 'Adventure ID not provided in the query parameters'}, status=status.HTTP_400_BAD_REQUEST)
+class BookingDetails(APIView):
 
-            adventure_package = AdventurePackage.objects.get(adventure_id=adventure_id)
-            serializer = AdventurePackageSerializer(adventure_package)
-            return Response(serializer.data)
-        except AdventurePackage.DoesNotExist:
-            return Response({'message': 'Adventure Package not found'}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({'message': 'Unable to retrieve adventure package details.', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-class CustomerDetailAPIView(APIView):
-    def post(self, request, format=None):
-        serializer = CustomerDetailSerializer(data=request.data)
-
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def get(self, request, format=None):
-        customer_details = CustomerDetail.objects.all()
-        serializer = CustomerDetailSerializer(customer_details, many=True)
-        return Response(serializer.data)
-
-class BookingDetailListCreateAPIView(generics.ListCreateAPIView):
-    queryset = BookingDetail.objects.all()
-    serializer_class = BookingDetailSerializer
-
-    def get(self):
-        queryset = BookingDetail.objects.all()
-        booking_id = self.request.query_params.get('id')
+    def get(self, request):
+        booking_id = self.request.query_params.get('booking_id')
 
         if booking_id:
-            queryset = queryset.filter(booking_id=booking_id)
-        return queryset
-    
-    def post(self, request, *args, **kwargs):
+            instance = BookingDetail.objects.filter(booking_id=booking_id).first()
+            if instance:
+                serializer = BookingDetailSerializer(instance)
+                return Response({"details": serializer.data}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Booking not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            data = BookingDetail.objects.all()
+            serializer = BookingDetailSerializer(data, many=True)
+            return Response({"details": serializer.data}, status=status.HTTP_200_OK)
+
+    def post(self, request ):
         try:
-            with transaction.atomic():
-                response = super().create(request, *args, **kwargs)
-                booking_id = response.data.get('booking_id')
+            user_id = request.data.get('user_id')
+            adventure_id = request.data.get('adventure_id')
 
-                # Fetch the booking details after committing the transaction
-                booking_instance = BookingDetail.objects.get(booking_id=booking_id)
+            # Fetch user details
+            user = get_object_or_404(User, user_id=user_id)
 
-                confirmation_message = f'Thank you for your booking! Here are your booking details:\n\n'
-                confirmation_message += f'Booking ID: {booking_instance.booking_id}\n'
-                confirmation_message += f'Name: {booking_instance.name}\n'
-                confirmation_message += f'Mobile Number: {booking_instance.mobile_number}\n'
-                confirmation_message += f'Email: {booking_instance.email}\n'
-                confirmation_message += f'Dates: {booking_instance.dates}\n'
-                confirmation_message += f'Package Details: {booking_instance.package_details}\n\n'
-                confirmation_message += 'We look forward to serving you.'
+            # Fetch adventure place details
+            adventure_place = get_object_or_404(AdventurePackage, adventure_id=adventure_id)
 
-                # Include booking details and confirmation message in the response
-                response.data['booking_details'] = {
-                    'booking_id': booking_instance.booking_id,
-                    'name': booking_instance.name,
-                    'mobile_number': booking_instance.mobile_number,
-                    'email': booking_instance.email,
-                    'dates': booking_instance.dates,
-                    'package_details': booking_instance.package_details,
-                }
-                response.data['confirmation_message'] = confirmation_message
+            # Create booking detail
+            booking_detail = BookingDetail.objects.create(
+                name=user.username,
+                mobile_number=user.mobile_number,
+                email=user.email,
+                package_name=adventure_place.locations,
+                activities=adventure_place.activities
+            )
+            
+            Travels.objects.create(
+                locations = adventure_place.locations,
+                price = adventure_place.cost,
+                user_id = user,
+                booking_id = booking_detail,
+                start_date = adventure_place.start_date,
+                booked_on = booking_detail.booking_date
+            )
 
-                return Response({
-                    'status': 'Booking created successfully',
-                    'subject': 'Booking Confirmation',
-                    'message': confirmation_message,
-                    'booking_details': response.data['booking_details']
-                }, status=status.HTTP_201_CREATED)
+            # Prepare response data
+            response_data = {
+                'message': 'Booking created successfully. Thank you for your booking. Here are your booking details.',
+                'booking_id': booking_detail.booking_id,
+                'username': user.username,
+                'password': user.password,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'mobile_number': user.mobile_number,
+                'email': user.email,
+                'aadhar_number': user.aadhar_number,
+                'gender': user.gender,
+                'address': user.address,
+                'date_of_birth': user.date_of_birth,
+                'start_date': adventure_place.start_date,
+                'package_name': booking_detail.package_name,
+                'activities': booking_detail.activities
+            }
 
-        except BookingDetail.DoesNotExist:
-            return Response({'error': 'BookingDetail not found after creation'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(response_data, status=status.HTTP_201_CREATED)
+
+        except User.DoesNotExist:
+            return Response({'error': 'User does not exist'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
+class TravelDetails(APIView):
+    def get(self, request):
+        data = Travels.objects.all()
+        serializer = TravelSerializer(data, many=True)
+        return Response({"details": serializer.data}, status=status.HTTP_200_OK)
 
-        # Check if 'id' query parameter is provided for retrieving a particular instance
-        booking_id = self.request.query_params.get('id')
-        if booking_id:
-            try:
-                instance = queryset.get(pk=booking_id)
-                serializer = self.get_serializer(instance)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            except BookingDetail.DoesNotExist:
-                return Response({'error': 'BookingDetail not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = self.get_serializer(queryset, many=True)
-
-        # Display a message for the GET request
-        display_message = 'List of booking details retrieved successfully.'
-
-        return Response({
-            'status': 'Success',
-            'message': display_message,
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
-
-class UserFeedbackCreateAPIView(generics.CreateAPIView):
+class UserFeedbackCreate(generics.CreateAPIView):
     queryset = UserFeedback.objects.all()
     serializer_class = UserFeedbackSerializer
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        user = request.user if request.user.is_authenticated else None
-
-        # Exclude 'user' from the serializer's context if it's None
-        serializer_context = {'request': request}
-        if user is not None:
-            serializer_context['user'] = user
-
-        serializer = self.get_serializer(data=request.data, context=serializer_context)
+        serializer = UserFeedbackSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(user=user)
-        return Response(serializer.data)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
     
-
-    def get(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-class LogoutAPIView(APIView):
+class UserFeedBackDetails(APIView):
+    def get(self, request):
+        data = UserFeedback.objects.all()
+        serializer = UserFeedbackSerializer(data, many=True)
+        return Response({"details": serializer.data}, status=status.HTTP_200_OK)
+    
+class Logout(APIView):
     permission_classes = []
 
     def post(self, request):
@@ -284,22 +325,28 @@ class LogoutAPIView(APIView):
 
         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
 
-class TopDestinationListAPIView(generics.ListAPIView):
-    queryset = TopDestination.objects.all()
-    serializer_class = TopDestinationSerializer
-
-class TopDestinationDetailAPIView(generics.ListAPIView):
-    serializer_class = TopDestinationSerializer
-
-    def get_queryset(self):
-        queryset = TopDestination.objects.all()
-        destination_id = self.request.query_params.get('id')
+class TopDestinations(generics.ListAPIView):
+    def get(self, request):
+        destination_id = self.request.query_params.get('destination_id')
 
         if destination_id:
-            queryset = queryset.filter(id=destination_id)
-
-        return queryset
-
-class TopDestinationCreateAPIView(generics.CreateAPIView):
-    queryset = TopDestination.objects.all()
-    serializer_class = TopDestinationSerializer
+            instance = TopDestination.objects.filter(destination_id=destination_id).first()
+            if instance:
+                serializer = TopDestinationSerializer(instance)
+                return Response({"details": serializer.data}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Top-Destinations not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            data = TopDestination.objects.all()
+            serializer = TopDestinationSerializer(data, many=True)
+            return Response({"details": serializer.data}, status=status.HTTP_200_OK)
+    
+    def post(self, request):
+        payload = request.data
+        serializer = TopDestinationSerializer(data= payload)
+        
+        if serializer.is_valid():
+            details = serializer.save()
+            
+            return Response({"details": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response("Unable to create", status=status.HTTP_400_BAD_REQUEST)
