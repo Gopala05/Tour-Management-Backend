@@ -245,6 +245,8 @@ class BookingDetails(APIView):
             adventure_id = request.data.get('adventure_id')
             total_cost = request.data.get('total_cost')
             passengers = request.data.get('no_of_passengers')
+            
+            print(passengers)
 
             # Fetch user details
             user = get_object_or_404(User, user_id=user_id)
@@ -276,6 +278,7 @@ class BookingDetails(APIView):
                 booking_id = booking_detail,
                 start_date = adventure_place.start_date,
                 booked_on = booking_detail.booking_date,
+                no_of_passengers = passengers,
                 cost_per_person = adventure_place.cost
             )
 
