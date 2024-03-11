@@ -56,6 +56,11 @@ class BookingDetail(models.Model):
     package_name = models.CharField(max_length=255)
     activities = models.TextField()
     booking_date = models.DateTimeField(auto_now_add=True)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    package_id = models.ForeignKey(AdventurePackage, on_delete=models.CASCADE)
+    no_of_passengers = models.IntegerField(default=1)
+    total_cost = models.IntegerField()
+    cost_per_person = models.CharField(max_length=100,default= 0, blank=False, null=False)
     class Meta:
         db_table = 'BookingDetail'
 
@@ -72,7 +77,7 @@ class Travels(models.Model):
         db_table = 'Travels'
 
 class UserFeedback(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
     user_name = models.CharField(max_length=50, default="Anonymous")
     feedback_text = models.TextField()
     rating = models.IntegerField(choices=RATING_CHOICES)

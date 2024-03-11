@@ -10,6 +10,7 @@ from .models import *
 from .serializers import *
 from django.http import JsonResponse
 from .utils import *
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -242,12 +243,17 @@ class BookingDetails(APIView):
         try:
             user_id = request.data.get('user_id')
             adventure_id = request.data.get('adventure_id')
+            total_cost = request.data.get('total_cost')
+            passengers = request.data.get('no_of_passengers')
 
             # Fetch user details
             user = get_object_or_404(User, user_id=user_id)
 
             # Fetch adventure place details
             adventure_place = get_object_or_404(AdventurePackage, adventure_id=adventure_id)
+            
+            if BookingDetail.objects.filter(package_id=adventure_id, user_id=user_id).exists():
+                return Response({'message': 'Booking for this Package already exists. Try Booking from another Account'}, status=status.HTTP_400_BAD_REQUEST)
 
             # Create booking detail
             booking_detail = BookingDetail.objects.create(
@@ -255,7 +261,12 @@ class BookingDetails(APIView):
                 mobile_number=user.mobile_number,
                 email=user.email,
                 package_name=adventure_place.locations,
-                activities=adventure_place.activities
+                activities=adventure_place.activities,
+                total_cost=total_cost,
+                user_id = user,
+                package_id = adventure_place,
+                no_of_passengers = passengers,
+                cost_per_person = adventure_place.cost
             )
             
             Travels.objects.create(
@@ -316,14 +327,14 @@ class UserFeedBackDetails(APIView):
         serializer = UserFeedbackSerializer(data, many=True)
         return Response({"details": serializer.data}, status=status.HTTP_200_OK)
     
-class Logout(APIView):
-    permission_classes = []
+# class Logout(APIView):
+#     permission_classes = []
 
-    def post(self, request):
-        if request.auth:
-            request.auth.delete()
+#     def post(self, request):
+#         if request.auth:
+#             request.auth.delete()
 
-        return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
+#         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
 
 class TopDestinations(generics.ListAPIView):
     def get(self, request):
@@ -350,3 +361,30 @@ class TopDestinations(generics.ListAPIView):
             
             return Response({"details": serializer.data}, status=status.HTTP_201_CREATED)
         return Response("Unable to create", status=status.HTTP_400_BAD_REQUEST)
+    
+class TokenRefresh(APIView):
+     def post(self,request):
+        try:
+            try:
+                body = json.loads(request.body.decode("utf-8"))
+                
+                refresh_token = body['refresh_token']
+            except Exception as e:
+                logger.error(e)
+                return JsonResponse({"message": "Pass Refresh token provided during login."},status=status.HTTP_400_BAD_REQUEST)
+
+            keycloak_openid = getKeycloak()
+            token = keycloak_openid.refresh_token(refresh_token)
+
+            resp = {
+                "token" : token['access_token'], 
+                "expires_in" : token['expires_in'],
+                "refresh_token" : token['refresh_token'],
+                "refresh_expires_in" : token['refresh_expires_in']
+                }
+
+        except Exception as e:
+            logger.error(e)
+            return JsonResponse({"message": "Error Refreshing the token. Session might have expired, login again."},status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        
+        return JsonResponse(resp,status=status.HTTP_200_OK)
