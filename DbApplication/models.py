@@ -59,7 +59,7 @@ class BookingDetail(models.Model):
     user_id = models.ForeignKey(User, on_delete=models.CASCADE)
     package_id = models.ForeignKey(AdventurePackage, on_delete=models.CASCADE)
     no_of_passengers = models.IntegerField(default=1)
-    total_cost = models.IntegerField()
+    total_cost = models.CharField(max_length=100,default= 0, blank=False, null=False)
     cost_per_person = models.CharField(max_length=100,default= 0, blank=False, null=False)
     class Meta:
         db_table = 'BookingDetail'
@@ -70,6 +70,8 @@ class Travels(models.Model):
     price = models.CharField(max_length=100,default= 0, blank=False, null=False)
     user_id = models.ForeignKey('User', on_delete=models.CASCADE)
     booking_id = models.ForeignKey('BookingDetail', on_delete=models.CASCADE)
+    no_of_passengers = models.IntegerField(default=1)
+    cost_per_person = models.CharField(max_length=100,default= 0, blank=False, null=False)
     start_date = models.DateField()
     booked_on = models.DateField()
 

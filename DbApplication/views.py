@@ -271,16 +271,17 @@ class BookingDetails(APIView):
             
             Travels.objects.create(
                 locations = adventure_place.locations,
-                price = adventure_place.cost,
+                price = total_cost,
                 user_id = user,
                 booking_id = booking_detail,
                 start_date = adventure_place.start_date,
-                booked_on = booking_detail.booking_date
+                booked_on = booking_detail.booking_date,
+                cost_per_person = adventure_place.cost
             )
 
             # Prepare response data
             response_data = {
-                'message': 'Booking created successfully. Thank you for your booking. Here are your booking details.',
+                'message': 'Booking Successfull !.Your booking is now a soaring success! Thank you for choosing us to be a part of your journey. Wishing you a spectacular and joy-filled adventure ahead. Safe travels! 🌟✈️',
                 'booking_id': booking_detail.booking_id,
                 'username': user.username,
                 'password': user.password,
