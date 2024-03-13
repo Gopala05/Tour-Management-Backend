@@ -38,12 +38,13 @@ class Admin(models.Model):
 class AdventurePackage(models.Model):
     adventure_id = models.AutoField(primary_key=True)
     locations = models.CharField(max_length=255)
-    activities = models.CharField(max_length=255, default= 0, blank=False, null=False)
-    places = models.CharField(max_length=255,default= 0, blank=False, null=False)
+    no_of_activities = models.IntegerField(default= 1)
+    no_of_places = models.IntegerField(default= 1)
     cost = models.CharField(max_length=100,default= 0, blank=False, null=False)
     start_date = models.DateField()
     duration = models.CharField(max_length=100,default= 0, blank=False, null=False)
-    images = models.ImageField(upload_to='adventure_package_images/', blank=True, null=True)
+    created_by = models.ForeignKey(Admin, on_delete=models.CASCADE)
+    # images = models.ImageField(upload_to='adventure_package_images/', blank=True, null=True)
 
     class Meta:
         db_table = 'AdventurePackage'
@@ -54,7 +55,6 @@ class BookingDetail(models.Model):
     mobile_number = models.CharField(max_length=15)
     email = models.EmailField()
     package_name = models.CharField(max_length=255)
-    activities = models.TextField()
     booking_date = models.DateTimeField(auto_now_add=True)
     user_id = models.ForeignKey(User, on_delete=models.CASCADE)
     package_id = models.ForeignKey(AdventurePackage, on_delete=models.CASCADE)
@@ -83,7 +83,7 @@ class UserFeedback(models.Model):
     user_name = models.CharField(max_length=50, default="Anonymous")
     feedback_text = models.TextField()
     rating = models.IntegerField(choices=RATING_CHOICES)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_on = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
@@ -91,10 +91,11 @@ class UserFeedback(models.Model):
     
 class TopDestination(models.Model):
     destination_id = models.AutoField(primary_key=True)
-    place_name = models.CharField(max_length=255)
+    place_names = models.CharField(max_length=255)
     no_of_places = models.IntegerField()
     no_of_activities = models.IntegerField()
-    price_amount = models.CharField(max_length=100,default= 0)
-
+    price = models.CharField(max_length=100,default= 0)
+    created_by = models.ForeignKey(Admin, on_delete=models.CASCADE)
+    
     class Meta:
         db_table = 'Top_Destinations'
