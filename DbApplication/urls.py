@@ -22,5 +22,8 @@ urlpatterns = [
     # path('api/logout', Logout.as_view(), name='logout'),
     path('api/token-refresh', TokenRefresh.as_view(), name='token_refresh'),
     path('api/top-destination', TopDestinations.as_view(), name='topdestination_detail'),
+    path('api/create-top-destination', CreateTopDestinations.as_view(), name='create_top_destination'),
+    path('api/update-top-destination', UpdateTopDestinations.as_view(), name='update_top_destination'),
+    path('api/delete-top-destination', DeleteTopDestinations.as_view(), name='delete_top_destination'),
     re_path("user", views.UserSignup.as_view())
 ]

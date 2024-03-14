@@ -263,7 +263,6 @@ class BookingDetails(APIView):
                 mobile_number=user.mobile_number,
                 email=user.email,
                 package_name=adventure_place.locations,
-                activities=adventure_place.activities,
                 total_cost=total_cost,
                 user_id = user,
                 package_id = adventure_place,
@@ -298,7 +297,6 @@ class BookingDetails(APIView):
                 'date_of_birth': user.date_of_birth,
                 'start_date': adventure_place.start_date,
                 'package_name': booking_detail.package_name,
-                'activities': booking_detail.activities
             }
 
             return Response(response_data, status=status.HTTP_201_CREATED)
@@ -355,16 +353,52 @@ class TopDestinations(generics.ListAPIView):
             data = TopDestination.objects.all()
             serializer = TopDestinationSerializer(data, many=True)
             return Response({"details": serializer.data}, status=status.HTTP_200_OK)
-    
+        
+class CreateTopDestinations(APIView):
     def post(self, request):
         payload = request.data
-        serializer = TopDestinationSerializer(data= payload)
-        
+        serializer = TopDestinationSerializer(data=payload)
         if serializer.is_valid():
             details = serializer.save()
             
             return Response({"details": serializer.data}, status=status.HTTP_201_CREATED)
         return Response("Unable to create", status=status.HTTP_400_BAD_REQUEST)
+
+class UpdateTopDestinations(APIView):
+    def put(self,request):
+        data = request.data
+        destination_id = request.data.get('destination_id')
+        
+        try:
+            destination = TopDestination.objects.get(destination_id=destination_id)
+            print(destination)
+        except Exception as e:
+            logger.error(e)
+            return Response({'message':'Destination Record not found'},status=status.HTTP_404_NOT_FOUND)   
+        
+        serialized_data = TopDestinationSerializer(destination, data=data, partial=True)
+        if serialized_data.is_valid():
+            serialized_data.save()
+            return Response({'message': 'Destionation Record Updated Successfully','details':serialized_data.data}, status=status.HTTP_200_OK)
+        else:
+            return Response(serialized_data.errors)
+
+class DeleteTopDestinations(APIView):
+    def delete(self, request):
+        destination_id = self.request.query_params.get('destination_id')
+        try:
+            if destination_id !='':
+                try:
+                    destination = TopDestination.objects.get(destination_id=destination_id)
+                except TopDestination.DoesNotExist:
+                        return Response({'message': 'Destination Record not found'}, status=status.HTTP_404_NOT_FOUND)
+                 
+                destination.delete()
+                return Response({'message': 'Top Destination Record removed successfully'}, status=status.HTTP_204_NO_CONTENT)
+            else:
+                return Response({'message': 'Destination ID is required '}, status=status.HTTP_400_BAD_REQUEST)
+        except:
+            return Response({'message':'error occurred while deleting Destination Record'},status=status.HTTP_404_NOT_FOUND) 
     
 class TokenRefresh(APIView):
      def post(self,request):
