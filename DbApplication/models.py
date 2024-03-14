@@ -17,7 +17,7 @@ class User(models.Model):
     last_name = models.CharField(max_length=30, blank=True, null=True)
     mobile_number = models.CharField(max_length=10, blank=False, null=False)
     email = models.EmailField(unique=True)
-    aadhar_number = models.CharField(max_length=11, blank=False, null=False)
+    aadhar_number = models.CharField(max_length=12, blank=False, null=False)
     gender = models.CharField(max_length=10, blank=False, null=False)
     address = models.TextField(null=True,blank=True)
     date_of_birth = models.DateField(blank=False, null=False)
@@ -88,7 +88,7 @@ class UserFeedback(models.Model):
         ordering = ['-created_on']
         db_table = 'User Feedback'
     
-class TopDestination(models.Model):
+class TopDestinations(models.Model):
     destination_id = models.AutoField(primary_key=True)
     place_names = models.CharField(max_length=255)
     no_of_places = models.IntegerField(default=1)

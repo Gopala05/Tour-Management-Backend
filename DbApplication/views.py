@@ -20,6 +20,7 @@ class UserSignup(APIView):
     """
     def post(self, request):
         data = request.data
+        print(data)
 
         if User.objects.filter(username=data['username']).exists():
             return Response({'message': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -34,9 +35,11 @@ class UserSignup(APIView):
             return Response({'message': 'Mobile Number already exists.'}, status=status.HTTP_400_BAD_REQUEST)
         
         serializer = UserSerializer(data=data)
+        print(serializer)
         
         if serializer.is_valid():
             user = serializer.save()
+            print(user)
 
             try:
                 keycloak_admin = getKeycloakAdmin()
@@ -272,7 +275,7 @@ class BookingDetails(APIView):
             
             Travels.objects.create(
                 locations = adventure_place.locations,
-                price = total_cost,
+                total_cost = total_cost,
                 user_id = user,
                 booking_id = booking_detail,
                 start_date = adventure_place.start_date,
@@ -338,19 +341,19 @@ class UserFeedBackDetails(APIView):
 
 #         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
 
-class TopDestinations(generics.ListAPIView):
+class TopDestination(generics.ListAPIView):
     def get(self, request):
         destination_id = self.request.query_params.get('destination_id')
 
         if destination_id:
-            instance = TopDestination.objects.filter(destination_id=destination_id).first()
+            instance = TopDestinations.objects.filter(destination_id=destination_id).first()
             if instance:
                 serializer = TopDestinationSerializer(instance)
                 return Response({"details": serializer.data}, status=status.HTTP_200_OK)
             else:
                 return Response({"error": "Top-Destinations not found"}, status=status.HTTP_404_NOT_FOUND)
         else:
-            data = TopDestination.objects.all()
+            data = TopDestinations.objects.all()
             serializer = TopDestinationSerializer(data, many=True)
             return Response({"details": serializer.data}, status=status.HTTP_200_OK)
         
@@ -370,7 +373,7 @@ class UpdateTopDestinations(APIView):
         destination_id = request.data.get('destination_id')
         
         try:
-            destination = TopDestination.objects.get(destination_id=destination_id)
+            destination = TopDestinations.objects.get(destination_id=destination_id)
             print(destination)
         except Exception as e:
             logger.error(e)
@@ -389,8 +392,8 @@ class DeleteTopDestinations(APIView):
         try:
             if destination_id !='':
                 try:
-                    destination = TopDestination.objects.get(destination_id=destination_id)
-                except TopDestination.DoesNotExist:
+                    destination = TopDestinations.objects.get(destination_id=destination_id)
+                except TopDestinations.DoesNotExist:
                         return Response({'message': 'Destination Record not found'}, status=status.HTTP_404_NOT_FOUND)
                  
                 destination.delete()
