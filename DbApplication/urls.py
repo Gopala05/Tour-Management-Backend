@@ -19,7 +19,11 @@ urlpatterns = [
     path('api/travels', TravelDetails.as_view(), name='user_travels'),
     # path('api/adventure-places', AdventurePackages.as_view(), name='adventure-place-list'),
     # path('api/customer-details', CustomerDetail.as_view(), name='customer-details-api'),
-    path('api/logout', Logout.as_view(), name='logout'),
-    path('api/top-destination', TopDestinations.as_view(), name='topdestination_detail'),
+    # path('api/logout', Logout.as_view(), name='logout'),
+    path('api/token-refresh', TokenRefresh.as_view(), name='token_refresh'),
+    path('api/top-destination', TopDestination.as_view(), name='topdestination_detail'),
+    path('api/create-top-destination', CreateTopDestinations.as_view(), name='create_top_destination'),
+    path('api/update-top-destination', UpdateTopDestinations.as_view(), name='update_top_destination'),
+    path('api/delete-top-destination', DeleteTopDestinations.as_view(), name='delete_top_destination'),
     re_path("user", views.UserSignup.as_view())
 ]

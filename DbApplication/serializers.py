@@ -37,5 +37,5 @@ class UserFeedbackSerializer(serializers.ModelSerializer):
 
 class TopDestinationSerializer(serializers.ModelSerializer):
     class Meta:
-        model = TopDestination
+        model = TopDestinations
         fields = '__all__'

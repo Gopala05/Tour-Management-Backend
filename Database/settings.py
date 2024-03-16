@@ -82,7 +82,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-
 ]
 
 KEYCLOAK_CONFIG = {
@@ -90,7 +89,7 @@ KEYCLOAK_CONFIG = {
     'KEYCLOAK_CLIENT_ID': os.environ.get('KEYCLOAK_CLIENT_ID'),
     'KEYCLOAK_SERVER_URL': os.environ.get('KEYCLOAK_SERVER_URL'),
     'KEYCLOAK_CLIENT_SECRET_KEY': os.environ.get('KEYCLOAK_CLIENT_SECRET_KEY'),
-    'EXCLUDE_PATH': ['create_user', 'sign_in', 'create_admin', 'admin_sign_in', 'logout', 'get_user', 'top-destination', 'adventure-package', 'feedbacks', 'refresh-token'],
+    'EXCLUDE_PATH': ['create_user', 'sign_in', 'create_admin', 'admin_sign_in', 'logout', 'get_user', 'top-destination', 'adventure-package', 'feedbacks', 'token-refresh'],
     'KEYCLOAK_TEST_ADMIN_USER' : os.environ.get('KEYCLOAK_TEST_ADMIN_USER'),
     'KEYCLOAK_TEST_ADMIN_PASSWORD' : os.environ.get('KEYCLOAK_TEST_ADMIN_PASSWORD')
 }

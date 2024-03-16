@@ -10,6 +10,7 @@ from .models import *
 from .serializers import *
 from django.http import JsonResponse
 from .utils import *
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ class UserSignup(APIView):
     """
     def post(self, request):
         data = request.data
+        print(data)
 
         if User.objects.filter(username=data['username']).exists():
             return Response({'message': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -33,9 +35,11 @@ class UserSignup(APIView):
             return Response({'message': 'Mobile Number already exists.'}, status=status.HTTP_400_BAD_REQUEST)
         
         serializer = UserSerializer(data=data)
+        print(serializer)
         
         if serializer.is_valid():
             user = serializer.save()
+            print(user)
 
             try:
                 keycloak_admin = getKeycloakAdmin()
@@ -242,12 +246,19 @@ class BookingDetails(APIView):
         try:
             user_id = request.data.get('user_id')
             adventure_id = request.data.get('adventure_id')
+            total_cost = request.data.get('total_cost')
+            passengers = request.data.get('no_of_passengers')
+            
+            print(passengers)
 
             # Fetch user details
             user = get_object_or_404(User, user_id=user_id)
 
             # Fetch adventure place details
             adventure_place = get_object_or_404(AdventurePackage, adventure_id=adventure_id)
+            
+            if BookingDetail.objects.filter(package_id=adventure_id, user_id=user_id).exists():
+                return Response({'message': 'Booking for this Package already exists. Try Booking from another Account'}, status=status.HTTP_400_BAD_REQUEST)
 
             # Create booking detail
             booking_detail = BookingDetail.objects.create(
@@ -255,21 +266,27 @@ class BookingDetails(APIView):
                 mobile_number=user.mobile_number,
                 email=user.email,
                 package_name=adventure_place.locations,
-                activities=adventure_place.activities
+                total_cost=total_cost,
+                user_id = user,
+                package_id = adventure_place,
+                no_of_passengers = passengers,
+                cost_per_person = adventure_place.cost
             )
             
             Travels.objects.create(
                 locations = adventure_place.locations,
-                price = adventure_place.cost,
+                total_cost = total_cost,
                 user_id = user,
                 booking_id = booking_detail,
                 start_date = adventure_place.start_date,
-                booked_on = booking_detail.booking_date
+                booked_on = booking_detail.booking_date,
+                no_of_passengers = passengers,
+                cost_per_person = adventure_place.cost
             )
 
             # Prepare response data
             response_data = {
-                'message': 'Booking created successfully. Thank you for your booking. Here are your booking details.',
+                'message': 'Booking Successfull !.Your booking is now a soaring success! Thank you for choosing us to be a part of your journey. Wishing you a spectacular and joy-filled adventure ahead. Safe travels! 🌟✈️',
                 'booking_id': booking_detail.booking_id,
                 'username': user.username,
                 'password': user.password,
@@ -283,7 +300,6 @@ class BookingDetails(APIView):
                 'date_of_birth': user.date_of_birth,
                 'start_date': adventure_place.start_date,
                 'package_name': booking_detail.package_name,
-                'activities': booking_detail.activities
             }
 
             return Response(response_data, status=status.HTTP_201_CREATED)
@@ -316,37 +332,100 @@ class UserFeedBackDetails(APIView):
         serializer = UserFeedbackSerializer(data, many=True)
         return Response({"details": serializer.data}, status=status.HTTP_200_OK)
     
-class Logout(APIView):
-    permission_classes = []
+# class Logout(APIView):
+#     permission_classes = []
 
-    def post(self, request):
-        if request.auth:
-            request.auth.delete()
+#     def post(self, request):
+#         if request.auth:
+#             request.auth.delete()
 
-        return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
+#         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
 
-class TopDestinations(generics.ListAPIView):
+class TopDestination(generics.ListAPIView):
     def get(self, request):
         destination_id = self.request.query_params.get('destination_id')
 
         if destination_id:
-            instance = TopDestination.objects.filter(destination_id=destination_id).first()
+            instance = TopDestinations.objects.filter(destination_id=destination_id).first()
             if instance:
                 serializer = TopDestinationSerializer(instance)
                 return Response({"details": serializer.data}, status=status.HTTP_200_OK)
             else:
                 return Response({"error": "Top-Destinations not found"}, status=status.HTTP_404_NOT_FOUND)
         else:
-            data = TopDestination.objects.all()
+            data = TopDestinations.objects.all()
             serializer = TopDestinationSerializer(data, many=True)
             return Response({"details": serializer.data}, status=status.HTTP_200_OK)
-    
+        
+class CreateTopDestinations(APIView):
     def post(self, request):
         payload = request.data
-        serializer = TopDestinationSerializer(data= payload)
-        
+        serializer = TopDestinationSerializer(data=payload)
         if serializer.is_valid():
             details = serializer.save()
             
             return Response({"details": serializer.data}, status=status.HTTP_201_CREATED)
         return Response("Unable to create", status=status.HTTP_400_BAD_REQUEST)
+
+class UpdateTopDestinations(APIView):
+    def put(self,request):
+        data = request.data
+        destination_id = request.data.get('destination_id')
+        
+        try:
+            destination = TopDestinations.objects.get(destination_id=destination_id)
+            print(destination)
+        except Exception as e:
+            logger.error(e)
+            return Response({'message':'Destination Record not found'},status=status.HTTP_404_NOT_FOUND)   
+        
+        serialized_data = TopDestinationSerializer(destination, data=data, partial=True)
+        if serialized_data.is_valid():
+            serialized_data.save()
+            return Response({'message': 'Destionation Record Updated Successfully','details':serialized_data.data}, status=status.HTTP_200_OK)
+        else:
+            return Response(serialized_data.errors)
+
+class DeleteTopDestinations(APIView):
+    def delete(self, request):
+        destination_id = self.request.query_params.get('destination_id')
+        try:
+            if destination_id !='':
+                try:
+                    destination = TopDestinations.objects.get(destination_id=destination_id)
+                except TopDestinations.DoesNotExist:
+                        return Response({'message': 'Destination Record not found'}, status=status.HTTP_404_NOT_FOUND)
+                 
+                destination.delete()
+                return Response({'message': 'Top Destination Record removed successfully'}, status=status.HTTP_204_NO_CONTENT)
+            else:
+                return Response({'message': 'Destination ID is required '}, status=status.HTTP_400_BAD_REQUEST)
+        except:
+            return Response({'message':'error occurred while deleting Destination Record'},status=status.HTTP_404_NOT_FOUND) 
+    
+class TokenRefresh(APIView):
+     def post(self,request):
+        try:
+            try:
+                body = json.loads(request.body.decode("utf-8"))
+                
+                refresh_token = body['refresh_token']
+            except Exception as e:
+                logger.error(e)
+                return JsonResponse({"message": "Pass Refresh token provided during login."},status=status.HTTP_400_BAD_REQUEST)
+
+            keycloak_openid = getKeycloak()
+            token = keycloak_openid.refresh_token(refresh_token)
+
+            resp = {
+                "token" : token['access_token'], 
+                "expires_in" : token['expires_in'],
+                "refresh_token" : token['refresh_token'],
+                "refresh_expires_in" : token['refresh_expires_in']
+                }
+
+        except Exception as e:
+            logger.error(e)
+            return JsonResponse({"message": "Error Refreshing the token. Session might have expired, login again."},status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        
+        return JsonResponse(resp,status=status.HTTP_200_OK)
