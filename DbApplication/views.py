@@ -20,8 +20,7 @@ class UserSignup(APIView):
     """
     def post(self, request):
         data = request.data
-        print(data)
-
+        
         if User.objects.filter(username=data['username']).exists():
             return Response({'message': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -35,11 +34,9 @@ class UserSignup(APIView):
             return Response({'message': 'Mobile Number already exists.'}, status=status.HTTP_400_BAD_REQUEST)
         
         serializer = UserSerializer(data=data)
-        print(serializer)
         
         if serializer.is_valid():
             user = serializer.save()
-            print(user)
 
             try:
                 keycloak_admin = getKeycloakAdmin()
@@ -54,7 +51,6 @@ class UserSignup(APIView):
                                         
             except Exception as e:
                 user.delete()
-                print(e)
                 logger.error(e)
                 return JsonResponse({"message": "Error occurred when creating user."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             
@@ -141,7 +137,6 @@ class AdminSignup(APIView):
                                         
             except Exception as e:
                 admin.delete()
-                print(e)
                 logger.error(e)
                 return JsonResponse({"message": "Error occurred when creating user."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             
@@ -249,8 +244,6 @@ class BookingDetails(APIView):
             total_cost = request.data.get('total_cost')
             passengers = request.data.get('no_of_passengers')
             
-            print(passengers)
-
             # Fetch user details
             user = get_object_or_404(User, user_id=user_id)
 
@@ -374,7 +367,6 @@ class UpdateTopDestinations(APIView):
         
         try:
             destination = TopDestinations.objects.get(destination_id=destination_id)
-            print(destination)
         except Exception as e:
             logger.error(e)
             return Response({'message':'Destination Record not found'},status=status.HTTP_404_NOT_FOUND)   
