@@ -27,5 +27,5 @@ Welcome to the Tourism Backend! This Django project serves as the backend for a 
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/Gopala05/Tour-Management.git
+   git clone https://github.com/Gopala05/Tour-Management-Backend.git
 
