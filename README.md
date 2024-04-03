@@ -18,8 +18,11 @@ Welcome to the Tourism Backend! This Django project serves as the backend for a 
 
 ### Prerequisites
 
+- Node
 - Python 3.8 or higher
 - PostgreSQL
+- Keycloack
+- Git (Version control)
 - Docker (optional)
 
 ### Installation
