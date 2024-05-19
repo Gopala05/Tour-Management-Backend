@@ -1,6 +1,6 @@
 # Tour Management Backend
 
-Welcome to the Tourism Backend! This Django project serves as the backend for a tourism application, providing APIs to manage tourist information, attractions, bookings, and more.
+Welcome to the Tour Management System Backend! This Django project serves as the backend for a tourism application, providing APIs to manage tourist information, attractions, bookings, and more.
 
 ## Features
 
