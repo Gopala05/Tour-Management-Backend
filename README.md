@@ -22,7 +22,6 @@ Welcome to the Tour Management System Backend! This Django project serves as the
 - PostgreSQL
 - Keycloack
 - Git (Version control) (Optional)
-- Docker (Optional)
 
 ### Installation
 
